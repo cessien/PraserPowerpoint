@@ -8,13 +8,12 @@ Praser Application
 
 #include <string.h>
 #include <GL/glui.h>
-#include "kinect.h"
+//#include "kinect.h"
+#include "powerpoint.h"
 
-/** These are the live variables passed into GLUI ***/
-int   wireframe = 0;
-int   segments = 8;
 int   main_window;
-
+int current_slide_index;
+unsigned char *current_slide;
 
 
 /***************************************** myGlutIdle() ***********/
@@ -48,20 +47,50 @@ void myGlutDisplay( void )
 {
   glClearColor( .0f, .0f, .0f, 1.0f );
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-  glMatrixMode(GL_PROJECTION);
-  glPushMatrix();
-  glLoadIdentity();
 
+  glPushMatrix();
+  //Powerpoint Layer
+  glEnable(GL_TEXTURE_2D);
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+  glBindTexture(GL_TEXTURE_2D, 10);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 640, 480, 0, GL_RGBA, GL_UNSIGNED_BYTE, current_slide);
+  //glColor4f(0.5f,0.0f,0.0f,1.0f);
+  glBegin(GL_POLYGON);
+  	  glTexCoord2f(0.0,0.5); glVertex3f(-1.0, 0.0, 0.0);
+      glTexCoord2f(0.5,0.5); glVertex3f(0.0, 0.0, 0.0);
+      glTexCoord2f(0.5,0.0); glVertex3f(0.0, 1.0, 0.0);
+      glTexCoord2f(0.0,0.0); glVertex3f(-1.0, 1.0, 0.0);
+  glEnd();
+  glDisable(GL_TEXTURE_2D);
+  glPopMatrix();
+
+
+  glPushMatrix();
+  //Kinect Layer
+  glEnable(GL_TEXTURE_2D);
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+  glBindTexture(GL_TEXTURE_2D, 1);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 640, 480, 0, GL_RGBA, GL_UNSIGNED_BYTE, current_slide);
+  //glColor4f(0.0f,0.0f,0.5f,1.0f);
+  glBegin(GL_POLYGON);
+  	  glTexCoord2f(-1.0,1.0); glVertex3f(0.0, 0.0, 0.0);
+  	  glTexCoord2f(0.0,1.0); glVertex3f(1.0, 0.0, 0.0);
+  	  glTexCoord2f(0.0,0.0); glVertex3f(1.0, 1.0, 0.0);
+  	  glTexCoord2f(-1.0,0.0); glVertex3f(0.0, 1.0, 0.0);
+  glEnd();
+  glPopMatrix();
+
+  glDisable(GL_TEXTURE_2D);
 
   glutSwapBuffers();
 }
 
 void controlCB(int control){
-
+	current_slide = getSlide(1);
 }
 
 void buttonCB(int button){
-
+	current_slide = getSlide(1);
 }
 
 /**************************************** main() ********************/
@@ -73,13 +102,14 @@ int main(int argc, char* argv[])
   glutInitWindowSize( 1024, 600 );
   glViewport(0,0,100,100);
 
-  start();
+  //start();
 //  glutDisplayFunc(glutDisplay);
 
   main_window = glutCreateWindow( "Kinect PowerPoint Prototype" );
 //  glutDisplayFunc( myGlutDisplay );
-  glInit(&argc, argv);
-  glutDisplayFunc(glutDisplay);
+  //glInit(&argc, argv);
+  //glutDisplayFunc(glutDisplay);
+  glutDisplayFunc(myGlutDisplay);
   GLUI_Master.set_glutReshapeFunc( Reshape );
 
   int laser = 1;
