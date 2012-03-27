@@ -4,16 +4,13 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
-../kinect.cpp \
-../main.cpp 
+../powerpoint.cpp 
 
 OBJS += \
-./kinect.o \
-./main.o 
+./powerpoint.o 
 
 CPP_DEPS += \
-./kinect.d \
-./main.d 
+./powerpoint.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

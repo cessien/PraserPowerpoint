@@ -12,7 +12,7 @@
 #include <GL/gl.h>
 #include <GL/glut.h>
 
-void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, XnUserID player, xn::ImageMetaData &imd, unsigned char * image);
+void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, XnUserID player, xn::ImageMetaData &imd);
 //void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, XnUserID player);
 unsigned char* raw_texture_load(const char *filename, int width, int height);
 #endif

@@ -1,6 +1,6 @@
 <OpenNI>
 	<Licenses>
-		<License vendor="PrimeSense" key="insert key here"/>
+		<License vendor="PrimeSense" key="0KOIk2JeIBYClPWVnMoRKn5cdY4="/>
 	</Licenses>
 	<Log writeToConsole="true" writeToFile="false">
 		<!-- 0 - Verbose, 1 - Info, 2 - Warning, 3 - Error (default) -->
@@ -22,6 +22,8 @@
 				<Mirror on="true"/>
 			</Configuration> 
 		</Node>
+		<Node type="Gesture"/>
+		<Node type="Hands"/>
 		<Node type="User" />
 	</ProductionNodes>
 </OpenNI>

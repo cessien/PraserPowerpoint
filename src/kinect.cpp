@@ -10,7 +10,7 @@
 #include <XnCppWrapper.h>
 #include <GL/glut.h>
 #include "SceneDrawer.h"
-
+#include <cmath>
 
 xn::Context g_Context;
 xn::ScriptNode g_ScriptNode;
@@ -18,6 +18,46 @@ xn::DepthGenerator g_DepthGenerator;
 xn::ImageGenerator g_ImageGenerator;
 xn::UserGenerator g_UserGenerator;
 xn::Recorder* g_pRecorder;
+
+int LEFT, RIGHT, TOP, BOTTOM;
+float CENTER;
+
+//Returns an array of the boundaries in (left, right, top, bottom).
+float * getBoundary(){
+	float * temp = (float *)malloc(sizeof(float) * 5);
+
+	if(LEFT != 0){
+		temp[0] = (float)LEFT/640;
+		//printf("Left: %f  ", temp[0]);
+	} else {
+		temp[0] = 1.0;
+	}
+
+	if(RIGHT != 640){
+		temp[1] = (float)RIGHT/640;
+		//printf("Right: %f  ", temp[1]);
+	} else {
+		temp[1] = 0.0;
+	}
+
+	if(TOP != 0){
+		temp[2] = (float)TOP/480;
+		//printf("Top: %f  ", temp[2]);
+	} else {
+		temp[2] = 1.0;
+	}
+
+	if(BOTTOM != 480){
+		temp[3] = (float)BOTTOM/480;
+		//printf("Bottom: %f  ", temp[3]);
+	} else {
+		temp[3] = 0.0;
+	}
+
+	temp[4] = CENTER/-480.0;
+	//printf("\n");
+	return temp;
+}
 
 XnUserID g_nPlayer = 0;
 XnBool g_bCalibrated = FALSE;
@@ -229,28 +269,23 @@ void DrawProjectivePoints(XnPoint3D& ptIn, int width, double r, double g, double
 }
 
 unsigned char *image;
+xn::SceneMetaData sceneMD;
+xn::DepthMetaData depthMD;
+xn::ImageMetaData imageMD;
+XnPoint3D com2;
 // this function is called each frame
-void glutDisplay (void)
+void kinectDisplay (void)
 {
-
-	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	// Setup the OpenGL viewpoint
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
 
-	xn::SceneMetaData sceneMD;
-	xn::DepthMetaData depthMD;
-	xn::ImageMetaData imageMD;
+
 	g_DepthGenerator.GetMetaData(depthMD);
 	g_ImageGenerator.GetMetaData(imageMD);
-
-	//glOrtho(0, depthMD.XRes(), depthMD.YRes(), 0, -1.0, 1.0);
 	glOrtho(0, depthMD.XRes(), depthMD.YRes(), 0, -1.0, 1.0);
 
-
-	glDisable(GL_TEXTURE_2D);
 
 	if (!g_bPause)
 	{
@@ -265,21 +300,20 @@ void glutDisplay (void)
 		g_ImageGenerator.GetMetaData(imageMD);
 		g_UserGenerator.GetUserPixels(0, sceneMD);
 
-//		unsigned char *temp_image = image;
-		DrawDepthMap(depthMD, sceneMD, g_nPlayer, imageMD, image);
+		DrawDepthMap(depthMD, sceneMD, g_nPlayer, imageMD);
+		//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 640, 480, 0, GL_RGB, GL_UNSIGNED_BYTE, imageMD.RGB24Data());
+
 
 		if (g_nPlayer != 0)
 		{
-			XnPoint3D com;
-			g_UserGenerator.GetCoM(g_nPlayer, com);
-			if (com.Z == 0)
+			g_UserGenerator.GetCoM(g_nPlayer, com2);
+			if (com2.Z == 0)
 			{
 				g_nPlayer = 0;
 				FindPlayer();
 			}
 		}
-
-	glutSwapBuffers();
+		glPopMatrix();
 }
 
 void glutIdle (void)
@@ -327,7 +361,7 @@ void glInit (int * pargc, char ** argv)
 	glutSetCursor(GLUT_CURSOR_NONE);
 
 	glutKeyboardFunc(glutKeyboard);
-	glutDisplayFunc(glutDisplay);
+//	glutDisplayFunc(glutDisplay);
 	glutIdleFunc(glutIdle);
 
 	glDisable(GL_DEPTH_TEST);
@@ -356,7 +390,12 @@ void glInit (int * pargc, char ** argv)
 	return (rc);						\
 }
 
+extern unsigned char* pDepthTexBuf;
+extern XnUserID* aUsers;
 int start(){
+	pDepthTexBuf = (unsigned char *)malloc(sizeof(char)*(640*480*4));
+	aUsers  = (XnUserID *)malloc(sizeof(XnUserID)*15);
+
 	XnStatus rc = XN_STATUS_OK;
 	xn::EnumerationErrors errors;
 
@@ -392,9 +431,6 @@ int start(){
 	CHECK_RC(rc, "Register to calibration complete");
 	rc = g_UserGenerator.GetPoseDetectionCap().RegisterToPoseDetected(PoseDetected, NULL, hPoseCBs);
 	CHECK_RC(rc, "Register to pose detected");
-
-	image  = raw_texture_load("slide.png",640,480);
-	printf("%c", image[0]);
 }
 //int main(int argc, char **argv)
 //{

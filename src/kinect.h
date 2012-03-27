@@ -12,6 +12,7 @@
 #include <GL/gl.h>
 #include <GL/glut.h>
 
+float * getBoundary();
 int start();
 void StopCapture();
 
@@ -33,7 +34,7 @@ void XN_CALLBACK_TYPE CalibrationCompleted(xn::SkeletonCapability& skeleton, XnU
 
 void DrawProjectivePoints(XnPoint3D& ptIn, int width, double r, double g, double b);
 // this function is called each frame
-void glutDisplay (void);
+void kinectDisplay (void);
 
 void glutIdle (void);
 

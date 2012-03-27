@@ -8,12 +8,32 @@ Praser Application
 
 #include <string.h>
 #include <GL/glui.h>
-//#include "kinect.h"
+#include <iostream>
+#include "kinect.h"
 #include "powerpoint.h"
+#include "revelrecorder.h"
+#include <boost/thread/thread.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/recursive_mutex.hpp>
+#include <boost/bind.hpp>
+#include <queue>
+
+//DEBUG
+boost::recursive_mutex io_mutex;
+extern volatile int rQueue_scope;
+//</DEBUG>
 
 int   main_window;
 int current_slide_index;
 unsigned char *current_slide;
+
+int width = 1024;
+int height = 600;
+volatile int tdata_scope = 0;
+/**** properties ****/
+bool presenter_layer = true;
+bool powerpoint_layer = true;
+volatile bool recording = false;
 
 
 /***************************************** myGlutIdle() ***********/
@@ -42,56 +62,150 @@ void Reshape( int x, int y )
 }
 
 /***************************************** myGlutDisplay() *****************/
-
-void myGlutDisplay( void )
-{
+float size = 0.5;
+float center;
+float ratio = 1.0;
+float left,right,top,bottom;
+float * boundaries;
+unsigned char * tdata;
+void myGlutDisplay( void ) {
   glClearColor( .0f, .0f, .0f, 1.0f );
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-  glPushMatrix();
-  //Powerpoint Layer
-  glEnable(GL_TEXTURE_2D);
-  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-  glBindTexture(GL_TEXTURE_2D, 10);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 640, 480, 0, GL_RGBA, GL_UNSIGNED_BYTE, current_slide);
-  //glColor4f(0.5f,0.0f,0.0f,1.0f);
-  glBegin(GL_POLYGON);
-  	  glTexCoord2f(0.0,0.5); glVertex3f(-1.0, 0.0, 0.0);
-      glTexCoord2f(0.5,0.5); glVertex3f(0.0, 0.0, 0.0);
-      glTexCoord2f(0.5,0.0); glVertex3f(0.0, 1.0, 0.0);
-      glTexCoord2f(0.0,0.0); glVertex3f(-1.0, 1.0, 0.0);
-  glEnd();
-  glDisable(GL_TEXTURE_2D);
-  glPopMatrix();
+  if(powerpoint_layer){
+	  glPushMatrix();
+	  //Powerpoint Layer
+	  glEnable(GL_TEXTURE_2D);
+	  glBindTexture(GL_TEXTURE_2D, 10);
+	  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, current_slide);
+	  //glColor4f(0.5f,0.0f,0.0f,1.0f);
+	  glBegin(GL_POLYGON);
+		  glTexCoord2f(0.0,1.0); glVertex3f(-1.0, 1.0, 0.0);
+		  glTexCoord2f(1.0,1.0); glVertex3f(1.0, 1.0, 0.0);
+		  glTexCoord2f(1.0,0.0); glVertex3f(1.0, -1.0, 0.0);
+		  glTexCoord2f(0.0,0.0); glVertex3f(-1.0, -1.0, 0.0);
+	  glEnd();
+	  glDisable(GL_TEXTURE_2D);
+	  glPopMatrix();
+  }
 
+  if(presenter_layer){
+	  glPushMatrix();
+	  //Kinect Layer
+	  glEnable(GL_TEXTURE_2D);
+	  glBindTexture(GL_TEXTURE_2D, 1);
+	  glEnable (GL_BLEND);
+	  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	  kinectDisplay();
+	  //glColor4f(0.0f,0.0f,0.5f,1.0f);
+	  boundaries = getBoundary();
+	  left = boundaries[0];
+	  right = boundaries[1];
+	  bottom = boundaries[2];
+	  top = boundaries[3];
+	  ratio = (left - right)/(top - bottom);
+	  center = boundaries[4];
+	  //printf("%f\n",boundaries[4]);
+	  //printf("%f %f %f %f\n",boundaries[0],boundaries[1],boundaries[2],boundaries[3]);
 
-  glPushMatrix();
-  //Kinect Layer
-  glEnable(GL_TEXTURE_2D);
-  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-  glBindTexture(GL_TEXTURE_2D, 1);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 640, 480, 0, GL_RGBA, GL_UNSIGNED_BYTE, current_slide);
-  //glColor4f(0.0f,0.0f,0.5f,1.0f);
-  glBegin(GL_POLYGON);
-  	  glTexCoord2f(-1.0,1.0); glVertex3f(0.0, 0.0, 0.0);
-  	  glTexCoord2f(0.0,1.0); glVertex3f(1.0, 0.0, 0.0);
-  	  glTexCoord2f(0.0,0.0); glVertex3f(1.0, 1.0, 0.0);
-  	  glTexCoord2f(-1.0,0.0); glVertex3f(0.0, 1.0, 0.0);
-  glEnd();
-  glPopMatrix();
-
-  glDisable(GL_TEXTURE_2D);
+	  delete boundaries;
+	  glBegin(GL_POLYGON);
+		  glTexCoord2f(right,bottom); glVertex3f((center + size)*ratio, -1.0, 0.1);
+		  glTexCoord2f(left,bottom); glVertex3f((center - size)*ratio, -1.0, 0.1);
+		  glTexCoord2f(left,top); glVertex3f((center - size)*ratio, -1.0 + size * 2, 0.1);
+		  glTexCoord2f(right,top); glVertex3f((center + size)*ratio, -1.0 + size * 2, 0.1);
+	  glEnd();
+	  glPopMatrix();
+	  glDisable(GL_TEXTURE_2D);
+  }
 
   glutSwapBuffers();
 }
 
-void controlCB(int control){
-	current_slide = getSlide(1);
+void task1(){
+	glutMainLoop();
 }
 
-void buttonCB(int button){
-	current_slide = getSlide(1);
+void task2(){
+
+	while(1){
+		//std::cout << recording;
+		//printf("processing queue\n");
+		processQueue();
+	}
 }
+
+void task3(){
+
+
+	while(1){
+		boost::this_thread::sleep(boost::posix_time::milliseconds(40));
+
+		if(tdata_scope == 0){
+			tdata_scope = 1;
+			tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
+			glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE, tdata);
+			recordFrame(tdata);
+			tdata_scope = 0;
+		}
+
+
+
+
+
+		if((int)recording == 1){
+			//printf("Hi\n");
+			//printf("DEBUG: %X\n",*(tdata  + 300));
+			//recordFrame(tdata);
+		  //processQueue();
+		}
+	}
+}
+
+int laser = 1;
+int presenter = 1;
+int powerpoint = 1;
+
+void controlCB(int control){
+	switch(control){
+	case 0:
+		break;
+	case 1:
+		if (presenter == 1){
+			presenter_layer = true;
+		} else {
+			presenter_layer = false;
+		}
+		break;
+	case 2:
+		if (powerpoint == 1){
+			powerpoint_layer = true;
+		} else {
+			powerpoint_layer = false;
+		}
+		break;
+	}
+}
+
+boost::thread thread2;
+void buttonCB(int button){
+	switch(button){
+	case 100:
+		recording = true;
+		initRecord();
+		break;
+	case 101:
+		recording = false;
+		endRecord();
+		//thread2.detach();
+		break;
+	}
+
+}
+
 
 /**************************************** main() ********************/
 int main(int argc, char* argv[])
@@ -100,21 +214,15 @@ int main(int argc, char* argv[])
   glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
   glutInitWindowPosition( 50, 50 );
   glutInitWindowSize( 1024, 600 );
-  glViewport(0,0,100,100);
+  glViewport(0,0,width,height);
 
-  //start();
-//  glutDisplayFunc(glutDisplay);
+  current_slide = getSlide(1);
+  tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
+  start();
 
   main_window = glutCreateWindow( "Kinect PowerPoint Prototype" );
-//  glutDisplayFunc( myGlutDisplay );
-  //glInit(&argc, argv);
-  //glutDisplayFunc(glutDisplay);
   glutDisplayFunc(myGlutDisplay);
   GLUI_Master.set_glutReshapeFunc( Reshape );
-
-  int laser = 1;
-  int presenter = 1;
-  int powerpoint = 1;
 
   /***************** GLUI window components ***********************/
   GLUI *PropertyBar = GLUI_Master.create_glui_subwindow(main_window, GLUI_SUBWINDOW_RIGHT);
@@ -143,8 +251,13 @@ int main(int argc, char* argv[])
   /* We register the idle callback with GLUI, *not* with GLUT */
   GLUI_Master.set_glutIdleFunc( myGlutIdle );
 
-  glutMainLoop();
-
+  using namespace boost;
+  thread thread1 = thread(task1);
+  thread2 = thread(task2);
+  thread thread3 = thread(task3);
+  thread1.join();
+  thread2.join();
+  thread3.join();
   return EXIT_SUCCESS;
 }
 

@@ -23,9 +23,6 @@ C_UPPER_DEPS :=
 
 # Every subdirectory with source files must be described here
 SUBDIRS := \
-<<<<<<< HEAD
-. \
-=======
 src \
->>>>>>> 2de90737c4ed4d8a0b9906ec7172930eee3d793b
+. \
 
