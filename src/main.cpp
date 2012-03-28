@@ -256,8 +256,8 @@ int main(int argc, char* argv[])
   thread2 = thread(task2);
   thread thread3 = thread(task3);
   thread1.join();
-  thread2.join();
-  thread3.join();
+  //thread2.join();
+  //thread3.join();
   return EXIT_SUCCESS;
 }
 
