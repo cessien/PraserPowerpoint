@@ -52,6 +52,7 @@
 									<listOptionValue builtIn="false" value="revel"/>
 									<listOptionValue builtIn="false" value="xvidcore"/>
 									<listOptionValue builtIn="false" value="boost_thread"/>
+									<listOptionValue builtIn="false" value="XnVNite_1_4_1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.311552317" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>

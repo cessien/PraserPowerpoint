@@ -5,7 +5,7 @@
 #include <cstring>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/bind.hpp>
+//#include <boost/bind.hpp>
 #include "revelrecorder.h"
 
 extern int width, height;
@@ -122,38 +122,27 @@ void initRecord(){
 }
 
 std::queue<unsigned char*> rQueue;
-volatile int rQueue_scope = 0;
-
-//boost::mutex io_mutex2;
+boost::mutex io_mutex2;
 
 
 //Remove frames from the buffer and record it to a file
 void processQueue(){
-	if(rQueue_scope == 0){
-		//rQueue_scope == 2;
-		if(rQueue.empty()){
-			return;
-		}
-		//rQueue_scope == 0;
+	if(rQueue.empty()){
+		return;
 	}
+	boost::unique_lock<boost::mutex> lock(io_mutex2);
 
+	printf("Size of the queue is: %i\n",rQueue.size());
 
 	//Flip the image upside down
 	for(int i = height - 1; i >= 0; i--){
+//		printf("hey %i\n", i);
 		//memcpy(frame.pixels + (height - i - 1)*width*4, queue.dequeFrame() + i*width*4, width*4);
-		if(rQueue_scope == 0){
-			//rQueue_scope == 2;
-			memcpy(frame.pixels + (height - i - 1)*width*4, rQueue.front() + i*width*4, width*4);
-			//rQueue_scope == 0;
-		}
+		memcpy(frame.pixels + (height - i - 1)*width*4, rQueue.front() + i*width*4, width*4);
 	}
 
-	if(rQueue_scope == 0){
-		//rQueue_scope == 2;
-		free(rQueue.front());
-		rQueue.pop();
-		//rQueue_scope == 0;
-	}
+	//free(rQueue.front());
+	rQueue.pop();
 	//lock.unlock();
 
 	int frameSize;
@@ -165,58 +154,62 @@ void processQueue(){
 	}
 	printf("Frame %d of %d: %d bytes\n", numFrames+1, numFrames, frameSize);
 	numFrames++;
+//	io_mutex2.unlock();
 }
 
 void recordFrame(unsigned char *data){
-	while(rQueue_scope != 0);
-	if(rQueue_scope == 0){
-		rQueue_scope == 3;
-		rQueue.push(data);
-		rQueue_scope == 3;
-	}
+	boost::unique_lock<boost::mutex> lock(io_mutex2);
+//	printf("data: %x\n", data[300]);
+	rQueue.push(data);
+//	io_mutex2.unlock();
+//	free(data);
 }
 
 void endRecord(){
-	while(!rQueue.empty()){
-		processQueue();
+//		while(!rQueue.empty()){
+//			processQueue();
+//		}
+	if(numFrames > 0){
+		// Encode the audio track.  NOTE that each call to Revel_EncodeAudio()
+		// *appends* the new audio data onto the existing audio track.  There is
+		// no synchronization between the audio and video tracks!  If you want
+		// the audio to start on frame 60, you need to manually insert 60 frames
+		// worth of silence at the beginning of your audio track!
+		//
+		// To demonstrate this, we'll encode the audio buffer twice. Note that
+		// the two chimes play immediately when the movie starts, one after the
+		// other, even though we're encoding them "after" all the video frames.
+
+
+		int totalAudioBytes = 0;
+		revError = Revel_EncodeAudio(encoderHandle, audioBuffer, audioBufferSize,
+				&totalAudioBytes);
+		revError = Revel_EncodeAudio(encoderHandle, audioBuffer, audioBufferSize,
+				&totalAudioBytes);
+		if (revError != REVEL_ERR_NONE)
+		{
+			printf("Revel Error while writing audio: %d\n", revError);
+			exit(1);
+		}
+		printf("Encoded %d bytes of audio\n", totalAudioBytes);
+
+
+		// Finalize encoding.  If this step is skipped, the output movie will be
+		// unviewable!
+		int totalSize;
+		revError = Revel_EncodeEnd(encoderHandle, &totalSize);
+		if (revError != REVEL_ERR_NONE)
+		{
+			printf("Revel Error while ending encoding: %d\n", revError);
+			exit(1);
+		}
+		printf("%s written: %dx%d, %d frames, %d bytes\n", filename, width, height,
+				numFrames, totalSize);
+
+		// Final cleanup.
+		//			Revel_DestroyEncoder(encoderHandle);
+		//			if (audioBuffer != NULL)
+		//				delete [] audioBuffer;
+		//			delete [] (int*)frame.pixels;
 	}
-    // Encode the audio track.  NOTE that each call to Revel_EncodeAudio()
-    // *appends* the new audio data onto the existing audio track.  There is
-    // no synchronization between the audio and video tracks!  If you want
-    // the audio to start on frame 60, you need to manually insert 60 frames
-    // worth of silence at the beginning of your audio track!
-    //
-    // To demonstrate this, we'll encode the audio buffer twice. Note that
-    // the two chimes play immediately when the movie starts, one after the
-    // other, even though we're encoding them "after" all the video frames.
-    int totalAudioBytes = 0;
-    revError = Revel_EncodeAudio(encoderHandle, audioBuffer, audioBufferSize,
-        &totalAudioBytes);
-    revError = Revel_EncodeAudio(encoderHandle, audioBuffer, audioBufferSize,
-        &totalAudioBytes);
-    if (revError != REVEL_ERR_NONE)
-    {
-        printf("Revel Error while writing audio: %d\n", revError);
-        exit(1);
-    }
-    printf("Encoded %d bytes of audio\n", totalAudioBytes);
-    
-
-    // Finalize encoding.  If this step is skipped, the output movie will be
-    // unviewable!
-    int totalSize;
-    revError = Revel_EncodeEnd(encoderHandle, &totalSize);
-    if (revError != REVEL_ERR_NONE)
-    {
-	    printf("Revel Error while ending encoding: %d\n", revError);
-	    exit(1);
-    }
-    printf("%s written: %dx%d, %d frames, %d bytes\n", filename, width, height,
-        numFrames, totalSize);
-
-    // Final cleanup.
-    Revel_DestroyEncoder(encoderHandle);
-    if (audioBuffer != NULL)
-        delete [] audioBuffer;
-    delete [] (int*)frame.pixels;
 }

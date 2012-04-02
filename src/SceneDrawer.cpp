@@ -73,6 +73,7 @@ void DrawLimb(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2)
 	g_DepthGenerator.ConvertRealWorldToProjective(2, pt, pt);
 	glVertex3i(pt[0].X, pt[0].Y, 0);
 	glVertex3i(pt[1].X, pt[1].Y, 0);
+	printf("Points: %f, %f, %f \n");
 }
 
 unsigned char* pDepthTexBuf;
@@ -231,30 +232,271 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, Xn
 //	}
 
 	// Draw skeleton of user
-//	if (player != 0)
-//	{
 //		glBegin(GL_LINES);
-		//glColor4f(1-Colors[player%nColors][0], 1-Colors[player%nColors][1], 1-Colors[player%nColors][2], 1);
-		/*DrawLimb(player, XN_SKEL_HEAD, XN_SKEL_NECK);
-
-		DrawLimb(player, XN_SKEL_NECK, XN_SKEL_LEFT_SHOULDER);
-		DrawLimb(player, XN_SKEL_LEFT_SHOULDER, XN_SKEL_LEFT_ELBOW);
-		DrawLimb(player, XN_SKEL_LEFT_ELBOW, XN_SKEL_LEFT_HAND);
-
-		DrawLimb(player, XN_SKEL_NECK, XN_SKEL_RIGHT_SHOULDER);
-		DrawLimb(player, XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW);
-		DrawLimb(player, XN_SKEL_RIGHT_ELBOW, XN_SKEL_RIGHT_HAND);
-
-		DrawLimb(player, XN_SKEL_LEFT_SHOULDER, XN_SKEL_TORSO);
-		DrawLimb(player, XN_SKEL_RIGHT_SHOULDER, XN_SKEL_TORSO);
-
-		DrawLimb(player, XN_SKEL_TORSO, XN_SKEL_LEFT_HIP);
-		DrawLimb(player, XN_SKEL_LEFT_HIP, XN_SKEL_LEFT_KNEE);
-		DrawLimb(player, XN_SKEL_LEFT_KNEE, XN_SKEL_LEFT_FOOT);
-
-		DrawLimb(player, XN_SKEL_TORSO, XN_SKEL_RIGHT_HIP);
-		DrawLimb(player, XN_SKEL_RIGHT_HIP, XN_SKEL_RIGHT_KNEE);
-		DrawLimb(player, XN_SKEL_RIGHT_KNEE, XN_SKEL_RIGHT_FOOT);*/
+//		//glColor4f(1,0,0,1.0f);
+//		glVertex3f(-1, 1, 0);
+//		glVertex3f(1, -1, 0);
+//		//glColor4f(1-Colors[player%nColors][0], 1-Colors[player%nColors][1], 1-Colors[player%nColors][2], 1);
+//		DrawLimb(1, XN_SKEL_HEAD, XN_SKEL_NECK);
+//
+//		DrawLimb(1, XN_SKEL_NECK, XN_SKEL_LEFT_SHOULDER);
+//		DrawLimb(1, XN_SKEL_LEFT_SHOULDER, XN_SKEL_LEFT_ELBOW);
+//		DrawLimb(1, XN_SKEL_LEFT_ELBOW, XN_SKEL_LEFT_HAND);
+//
+//		DrawLimb(1, XN_SKEL_NECK, XN_SKEL_RIGHT_SHOULDER);
+//		DrawLimb(1, XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW);
+//		DrawLimb(1, XN_SKEL_RIGHT_ELBOW, XN_SKEL_RIGHT_HAND);
+//
+//		DrawLimb(1, XN_SKEL_LEFT_SHOULDER, XN_SKEL_TORSO);
+//		DrawLimb(1, XN_SKEL_RIGHT_SHOULDER, XN_SKEL_TORSO);
+//
+//		DrawLimb(1, XN_SKEL_TORSO, XN_SKEL_LEFT_HIP);
+//		DrawLimb(1, XN_SKEL_LEFT_HIP, XN_SKEL_LEFT_KNEE);
+//		DrawLimb(1, XN_SKEL_LEFT_KNEE, XN_SKEL_LEFT_FOOT);
+//
+//		DrawLimb(1, XN_SKEL_TORSO, XN_SKEL_RIGHT_HIP);
+//		DrawLimb(1, XN_SKEL_RIGHT_HIP, XN_SKEL_RIGHT_KNEE);
+//		DrawLimb(1, XN_SKEL_RIGHT_KNEE, XN_SKEL_RIGHT_FOOT);
 //		glEnd();
-//	}
+
+	//XnSkeletonJoint eJoint1 = XN_SKEL_RIGHT_HAND;
+
+}
+
+#include "XnVDepthMessage.h"
+#include <XnVHandPointContext.h>
+// Constructor. Receives the number of previous positions to store per hand,
+// and a source for depth map
+XnVPointDrawer::XnVPointDrawer(XnUInt32 nHistory, xn::DepthGenerator depthGenerator) :
+	XnVPointControl("XnVPointDrawer"),
+	m_nHistorySize(nHistory), m_DepthGenerator(depthGenerator), m_bDrawDM(false), m_bFrameID(false)
+{
+	m_pfPositionBuffer = new XnFloat[nHistory*3];
+}
+
+// Destructor. Clear all data structures
+XnVPointDrawer::~XnVPointDrawer()
+{
+	std::map<XnUInt32, std::list<XnPoint3D> >::iterator iter;
+	for (iter = m_History.begin(); iter != m_History.end(); ++iter)
+	{
+		iter->second.clear();
+	}
+	m_History.clear();
+
+	delete []m_pfPositionBuffer;
+}
+
+// Change whether or not to draw the depth map
+void XnVPointDrawer::SetDepthMap(XnBool bDrawDM)
+{
+	m_bDrawDM = bDrawDM;
+}
+// Change whether or not to print the frame ID
+void XnVPointDrawer::SetFrameID(XnBool bFrameID)
+{
+	m_bFrameID = bFrameID;
+}
+
+// Handle creation of a new hand
+static XnBool bShouldPrint = false;
+void XnVPointDrawer::OnPointCreate(const XnVHandPointContext* cxt)
+{
+	printf("** %d\n", cxt->nID);
+	// Create entry for the hand
+	m_History[cxt->nID].clear();
+	bShouldPrint = true;
+	OnPointUpdate(cxt);
+	bShouldPrint = true;
+}
+// Handle new position of an existing hand
+void XnVPointDrawer::OnPointUpdate(const XnVHandPointContext* cxt)
+{
+	// positions are kept in projective coordinates, since they are only used for drawing
+	XnPoint3D ptProjective(cxt->ptPosition);
+
+	if (bShouldPrint)printf("Point (%f,%f,%f)", ptProjective.X, ptProjective.Y, ptProjective.Z);
+	m_DepthGenerator.ConvertRealWorldToProjective(1, &ptProjective, &ptProjective);
+	if (bShouldPrint)printf(" -> (%f,%f,%f)\n", ptProjective.X, ptProjective.Y, ptProjective.Z);
+
+	// Add new position to the history buffer
+	m_History[cxt->nID].push_front(ptProjective);
+	// Keep size of history buffer
+	if (m_History[cxt->nID].size() > m_nHistorySize)
+		m_History[cxt->nID].pop_back();
+	bShouldPrint = false;
+}
+
+// Handle destruction of an existing hand
+void XnVPointDrawer::OnPointDestroy(XnUInt32 nID)
+{
+	// No need for the history buffer
+	m_History.erase(nID);
+}
+
+
+unsigned int getClosestPowerOfTwo(unsigned int n)
+{
+	unsigned int m = 2;
+	while(m < n) m<<=1;
+
+	return m;
+}
+GLuint initTexture(void** buf, int& width, int& height)
+{
+	GLuint texID = 0;
+	glGenTextures(1,&texID);
+
+	width = getClosestPowerOfTwo(width);
+	height = getClosestPowerOfTwo(height);
+	*buf = new unsigned char[width*height*4];
+	glBindTexture(GL_TEXTURE_2D,texID);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	return texID;
+}
+
+GLfloat texcoords[8];
+void DrawRectangle(float topLeftX, float topLeftY, float bottomRightX, float bottomRightY)
+{
+	GLfloat verts[8] = {	topLeftX, topLeftY,
+		topLeftX, bottomRightY,
+		bottomRightX, bottomRightY,
+		bottomRightX, topLeftY
+	};
+	glVertexPointer(2, GL_FLOAT, 0, verts);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+	glFlush();
+}
+void DrawTexture(float topLeftX, float topLeftY, float bottomRightX, float bottomRightY)
+{
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glTexCoordPointer(2, GL_FLOAT, 0, texcoords);
+
+	DrawRectangle(topLeftX, topLeftY, bottomRightX, bottomRightY);
+
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+}
+
+void DrawFrameID(XnUInt32 nFrameID)
+{
+	glColor4f(1,0,0,1);
+	glRasterPos2i(20, 50);
+	XnChar strLabel[20];
+	sprintf(strLabel, "%d", nFrameID);
+	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
+}
+
+XnBool XnVPointDrawer::IsTouching(XnUInt32 id) const
+{
+	for (std::list<XnUInt32>::const_iterator iter = m_TouchingFOVEdge.begin(); iter != m_TouchingFOVEdge.end(); ++iter)
+	{
+		if (*iter == id)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+void XnVPointDrawer::Draw() const
+{
+	std::map<XnUInt32, std::list<XnPoint3D> >::const_iterator PointIterator;
+
+	// Go over each existing hand
+	for (PointIterator = m_History.begin();
+		PointIterator != m_History.end();
+		++PointIterator)
+	{
+		// Clear buffer
+		XnUInt32 nPoints = 0;
+		XnUInt32 i = 0;
+		XnUInt32 Id = PointIterator->first;
+
+		// Go over all previous positions of current hand
+		std::list<XnPoint3D>::const_iterator PositionIterator;
+		for (PositionIterator = PointIterator->second.begin();
+			PositionIterator != PointIterator->second.end();
+			++PositionIterator, ++i)
+		{
+			// Add position to buffer
+			XnPoint3D pt(*PositionIterator);
+			m_pfPositionBuffer[3*i] = pt.X;
+			m_pfPositionBuffer[3*i + 1] = pt.Y;
+			m_pfPositionBuffer[3*i + 2] = 0;//pt.Z();
+		}
+
+		// Set color
+		XnUInt32 nColor = Id % nColors;
+		XnUInt32 nSingle = GetPrimaryID();
+		if (Id == GetPrimaryID())
+			nColor = 6;
+		// Draw buffer:
+		glColor4f(Colors[nColor][0],
+				Colors[nColor][1],
+				Colors[nColor][2],
+				1.0f);
+		glPointSize(2);
+		glVertexPointer(3, GL_FLOAT, 0, m_pfPositionBuffer);
+		glDrawArrays(GL_LINE_STRIP, 0, i);
+
+
+		if (IsTouching(Id))
+		{
+			glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+		}
+		glPointSize(8);
+		glDrawArrays(GL_POINTS, 0, 1);
+		glFlush();
+	}
+}
+void XnVPointDrawer::SetTouchingFOVEdge(XnUInt32 nID)
+{
+	m_TouchingFOVEdge.push_front(nID);
+}
+
+// Handle a new Message
+void XnVPointDrawer::Update(XnVMessage* pMessage)
+{
+	// PointControl's Update calls all callbacks for each hand
+	XnVPointControl::Update(pMessage);
+
+	if (m_bDrawDM)
+	{
+		// Draw depth map
+		xn::DepthMetaData depthMD;
+		m_DepthGenerator.GetMetaData(depthMD);
+		//DrawDepthMap(depthMD);
+	}
+
+	if (m_bFrameID)
+	{
+		// Print out frame ID
+		xn::DepthMetaData depthMD;
+		m_DepthGenerator.GetMetaData(depthMD);
+		DrawFrameID(depthMD.FrameID());
+	}
+	// Draw hands
+	Draw();
+	m_TouchingFOVEdge.clear();
+}
+
+void PrintSessionState(SessionState eState)
+{
+	glColor4f(1,0,1,1);
+	glRasterPos2i(20, 20);
+	XnChar strLabel[200];
+
+	switch (eState)
+	{
+	case 0:
+		sprintf(strLabel, "Tracking hands"); break;
+	case 1:
+		sprintf(strLabel, "Perform click or wave gestures to track hand"); break;
+	case 2:
+		sprintf(strLabel, "Raise your hand for it to be identified, or perform click or wave gestures"); break;
+	}
+
+	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
 }

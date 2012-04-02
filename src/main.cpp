@@ -13,29 +13,29 @@ Praser Application
 #include "powerpoint.h"
 #include "revelrecorder.h"
 #include <boost/thread/thread.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/recursive_mutex.hpp>
-#include <boost/bind.hpp>
+//#include <boost/thread/mutex.hpp>
+//#include <boost/bind.hpp>
 #include <queue>
 
-//DEBUG
-boost::recursive_mutex io_mutex;
-extern volatile int rQueue_scope;
-//</DEBUG>
-
+void task3();
 int   main_window;
 int current_slide_index;
 unsigned char *current_slide;
+unsigned char * tdata;
 
 int width = 1024;
 int height = 600;
-volatile int tdata_scope = 0;
 /**** properties ****/
 bool presenter_layer = true;
 bool powerpoint_layer = true;
 volatile bool recording = false;
 
+/**** GLUI Controls****/
+int motor;
 
+//boost::thread thread1;
+//boost::thread thread2;
+//boost::thread thread3;
 /***************************************** myGlutIdle() ***********/
 
 void myGlutIdle( void )
@@ -67,7 +67,8 @@ float center;
 float ratio = 1.0;
 float left,right,top,bottom;
 float * boundaries;
-unsigned char * tdata;
+//unsigned char * tdata;
+
 void myGlutDisplay( void ) {
   glClearColor( .0f, .0f, .0f, 1.0f );
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -122,47 +123,27 @@ void myGlutDisplay( void ) {
 	  glDisable(GL_TEXTURE_2D);
   }
 
+
+	if(recording == 1){
+		if(tdata != NULL)
+			free(tdata);
+		tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
+
+//		boost::this_thread::sleep(boost::posix_time::milliseconds(33));
+		glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE, tdata);
+		recordFrame(tdata);
+	}
+	glPushMatrix();
+	glBegin(GL_LINES);
+	 // 	glColor4f(1,0,0,1);
+	  	glVertex3f(1,1,0);
+	  	glVertex3f(-1,-1,0);
+	  	//glVertex3f(,0,0);
+	  	//glVertex3f(1,1,0);
+
+	glEnd();
+	glPopMatrix();
   glutSwapBuffers();
-}
-
-void task1(){
-	glutMainLoop();
-}
-
-void task2(){
-
-	while(1){
-		//std::cout << recording;
-		//printf("processing queue\n");
-		processQueue();
-	}
-}
-
-void task3(){
-
-
-	while(1){
-		boost::this_thread::sleep(boost::posix_time::milliseconds(40));
-
-		if(tdata_scope == 0){
-			tdata_scope = 1;
-			tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
-			glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE, tdata);
-			recordFrame(tdata);
-			tdata_scope = 0;
-		}
-
-
-
-
-
-		if((int)recording == 1){
-			//printf("Hi\n");
-			//printf("DEBUG: %X\n",*(tdata  + 300));
-			//recordFrame(tdata);
-		  //processQueue();
-		}
-	}
 }
 
 int laser = 1;
@@ -190,9 +171,12 @@ void controlCB(int control){
 	}
 }
 
-boost::thread thread2;
+
 void buttonCB(int button){
 	switch(button){
+	case 3:
+		motorAngle(motor);
+		break;
 	case 100:
 		recording = true;
 		initRecord();
@@ -200,65 +184,123 @@ void buttonCB(int button){
 	case 101:
 		recording = false;
 		endRecord();
-		//thread2.detach();
 		break;
 	}
-
 }
 
+void task1(){
+	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
+	glutInitWindowPosition( 50, 50 );
+	glutInitWindowSize( 1024, 600 );
+	glViewport(0,0,width,height);
+	main_window = glutCreateWindow( "Kinect PowerPoint Prototype" );
+	glutDisplayFunc(myGlutDisplay);
+
+	GLUI_Master.set_glutReshapeFunc( Reshape );
+
+	/***************** GLUI window components ***********************/
+	GLUI *PropertyBar = GLUI_Master.create_glui_subwindow(main_window, GLUI_SUBWINDOW_RIGHT);
+	GLUI *MediaBar = GLUI_Master.create_glui_subwindow( main_window , GLUI_SUBWINDOW_BOTTOM);
+
+	GLUI_Panel *temp = new GLUI_Panel(PropertyBar,"Layers", GLUI_PANEL_EMBOSSED);
+	new GLUI_Checkbox( temp, "Laser", &laser, 0, controlCB ); //laser
+	new GLUI_Checkbox( temp, "Presenter", &presenter, 1, controlCB ); //presenter
+	new GLUI_Checkbox( temp, "PowerPoint", &powerpoint,  2, controlCB ); //powerpoint
+
+	new GLUI_Separator(PropertyBar);
+
+	temp = new GLUI_Panel(PropertyBar,"Mode", GLUI_PANEL_EMBOSSED);
+	new GLUI_Button(temp, "Combined", 0, buttonCB);
+	new GLUI_Separator(temp);
+	new GLUI_Button(temp, "Split", 1, buttonCB);
+
+	new GLUI_Separator(PropertyBar);
+	GLUI_Spinner *t = new GLUI_Spinner(PropertyBar, "Motor", GLUI_SPINNER_INT, &motor, 3, buttonCB);
+	t->set_int_limits(-27,27,GLUI_LIMIT_CLAMP);
+	t->set_speed(2);
+
+	new GLUI_Button(MediaBar, "Record",100,buttonCB);
+	new GLUI_Column(MediaBar);
+	new GLUI_Button(MediaBar, "Stop",101,buttonCB);
+
+	MediaBar->set_main_gfx_window( main_window );
+	PropertyBar->set_main_gfx_window( main_window );
+
+	/* We register the idle callback with GLUI, *not* with GLUT */
+	GLUI_Master.set_glutIdleFunc( myGlutIdle );
+
+	glutMainLoop();
+}
+
+//boost::mutex _rqueue;
+//boost::shared_mutex mutex;
+//boost::shared_lock<boost::shared_mutex> ReadLock;
+//boost::unique_lock<boost::shared_mutex> WriteLock;
+boost::mutex mutex;
+
+
+void task2(){
+
+//	while(1){
+//		//std::cout << recording;
+//		//printf("processing queue\n");
+//		processQueue();
+//	}
+
+//	boost::shared_lock< boost::mutex > lock(_rqueue);
+//	boost::mutex::scoped_lock scoped_lock(_rqueue);
+//	ReadLock read(mutex);
+	while(1){
+//		boost::lock_guard<boost::mutex> lock(mutex);
+		if(recording == true)
+			processQueue();
+	}
+}
+
+void task3(){
+
+//		boost::shared_lock< boost::mutex > lock(_rqueue);
+
+	while(1){
+//		boost::this_thread::sleep(boost::posix_time::milliseconds(40));
+//		boost::lock_guard<boost::mutex> lock(mutex);
+
+		if(recording == 1){
+			unsigned char * tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
+			boost::this_thread::sleep(boost::posix_time::milliseconds(30));
+			glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE, tdata);
+			printf("tdata: %i %i %i %i\n", (int)*(tdata + 300), (int)*(tdata + 301), (int)*(tdata + 302), (int)*(tdata + 303));
+			recordFrame(tdata);
+
+			//printf("Hi\n");
+			//printf("DEBUG: %X\n",*(tdata  + 300));
+			//recordFrame(tdata);
+			//processQueue();
+		}
+	}
+}
 
 /**************************************** main() ********************/
 int main(int argc, char* argv[])
 {
   glutInit(&argc, argv);
-  glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
-  glutInitWindowPosition( 50, 50 );
-  glutInitWindowSize( 1024, 600 );
-  glViewport(0,0,width,height);
-
-  current_slide = getSlide(1);
-  tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
+  current_slide_index = 1;
+  current_slide = getSlide(current_slide_index);
+//  tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
   start();
 
-  main_window = glutCreateWindow( "Kinect PowerPoint Prototype" );
-  glutDisplayFunc(myGlutDisplay);
-  GLUI_Master.set_glutReshapeFunc( Reshape );
-
-  /***************** GLUI window components ***********************/
-  GLUI *PropertyBar = GLUI_Master.create_glui_subwindow(main_window, GLUI_SUBWINDOW_RIGHT);
-  GLUI *MediaBar = GLUI_Master.create_glui_subwindow( main_window , GLUI_SUBWINDOW_BOTTOM);
-
-  GLUI_Panel *temp = new GLUI_Panel(PropertyBar,"Layers", GLUI_PANEL_EMBOSSED);
-  new GLUI_Checkbox( temp, "Laser", &laser, 0, controlCB ); //laser
-  new GLUI_Checkbox( temp, "Presenter", &presenter, 1, controlCB ); //presenter
-  new GLUI_Checkbox( temp, "PowerPoint", &powerpoint,  2, controlCB ); //powerpoint
-
-  new GLUI_Separator(PropertyBar);
-
-  temp = new GLUI_Panel(PropertyBar,"Mode", GLUI_PANEL_EMBOSSED);
-  new GLUI_Button(temp, "Combined", 0, buttonCB);
-  new GLUI_Separator(temp);
-  new GLUI_Button(temp, "Split", 1, buttonCB);
-
-  new GLUI_Button(MediaBar, "Record",100,buttonCB);
-  new GLUI_Column(MediaBar);
-  new GLUI_Button(MediaBar, "Stop",101,buttonCB);
-
-
-  MediaBar->set_main_gfx_window( main_window );
-  PropertyBar->set_main_gfx_window( main_window );
-
-  /* We register the idle callback with GLUI, *not* with GLUT */
-  GLUI_Master.set_glutIdleFunc( myGlutIdle );
 
   using namespace boost;
-  thread thread1 = thread(task1);
-  thread2 = thread(task2);
-  thread thread3 = thread(task3);
+  thread thread1(task1);
+  thread thread2(task2);
+//  thread thread3(task3);
+
+//  thread threaddd4(task1);
+
+//  task1();
   thread1.join();
-  //thread2.join();
-  //thread3.join();
+//  thread2.join();
+//  thread3.join();
+ // glutMainLoop();
   return EXIT_SUCCESS;
 }
-
-

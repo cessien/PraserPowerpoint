@@ -15,6 +15,7 @@
 float * getBoundary();
 int start();
 void StopCapture();
+void motorAngle(int angle);
 
 void CleanupExit();
 

@@ -11,6 +11,9 @@
 #include <GL/glut.h>
 #include "SceneDrawer.h"
 #include <cmath>
+#include "kinect.h"
+#include "XnVNite.h"
+#include "powerpoint.h"
 
 xn::Context g_Context;
 xn::ScriptNode g_ScriptNode;
@@ -18,7 +21,16 @@ xn::DepthGenerator g_DepthGenerator;
 xn::ImageGenerator g_ImageGenerator;
 xn::UserGenerator g_UserGenerator;
 xn::Recorder* g_pRecorder;
+xn::HandsGenerator g_HandsGenerator;
+xn::GestureGenerator g_GestureGenerator;
+XnVPointDrawer* g_pDrawer;
 
+
+XnVSessionManager* g_pSessionManager;
+XnVBroadcaster* broadcaster;
+
+extern int current_slide_index;
+extern unsigned char *current_slide;
 int LEFT, RIGHT, TOP, BOTTOM;
 float CENTER;
 
@@ -171,8 +183,8 @@ void FindPlayer()
 	{
 		return;
 	}
-	XnUserID aUsers[20];
-	XnUInt16 nUsers = 20;
+	XnUserID aUsers[1];
+	XnUInt16 nUsers = 1;
 	g_UserGenerator.GetUsers(aUsers, nUsers);
 
 	for (int i = 0; i < nUsers; ++i)
@@ -287,12 +299,9 @@ void kinectDisplay (void)
 	glOrtho(0, depthMD.XRes(), depthMD.YRes(), 0, -1.0, 1.0);
 
 
-	if (!g_bPause)
-	{
 		// Read next available data
-		g_Context.WaitOneUpdateAll(g_DepthGenerator);
-		g_Context.WaitOneUpdateAll(g_ImageGenerator);
-	}
+		g_Context.WaitAnyUpdateAll();
+		g_pSessionManager->Update(&g_Context);
 
 		// Process the data
 		//DRAW
@@ -390,8 +399,81 @@ void glInit (int * pargc, char ** argv)
 	return (rc);						\
 }
 
+void XN_CALLBACK_TYPE GestureIntermediateStageCompletedHandler(xn::GestureGenerator& generator, const XnChar* strGesture, const XnPoint3D* pPosition, void* pCookie)
+{
+//	printf("Gesture %s: Intermediate stage complete (%f,%f,%f)\n", strGesture, pPosition->X, pPosition->Y, pPosition->Z);
+}
+void XN_CALLBACK_TYPE GestureReadyForNextIntermediateStageHandler(xn::GestureGenerator& generator, const XnChar* strGesture, const XnPoint3D* pPosition, void* pCookie)
+{
+//	printf("Gesture %s: Ready for next intermediate stage (%f,%f,%f)\n", strGesture, pPosition->X, pPosition->Y, pPosition->Z);
+}
+void XN_CALLBACK_TYPE GestureProgressHandler(xn::GestureGenerator& generator, const XnChar* strGesture, const XnPoint3D* pPosition, XnFloat fProgress, void* pCookie)
+{
+//	printf("Gesture %s progress: %f (%f,%f,%f)\n", strGesture, fProgress, pPosition->X, pPosition->Y, pPosition->Z);
+}
+// callback for session start
+void XN_CALLBACK_TYPE SessionStarting(const XnPoint3D& ptPosition, void* UserCxt)
+{
+	printf("Session start: (%f,%f,%f)\n", ptPosition.X, ptPosition.Y, ptPosition.Z);
+//	g_SessionState = IN_SESSION;
+}
+// Callback for session end
+void XN_CALLBACK_TYPE SessionEnding(void* UserCxt)
+{
+	printf("Session end\n");
+//	g_SessionState = NOT_IN_SESSION;
+}
+void XN_CALLBACK_TYPE NoHands(void* UserCxt)
+{
+//	if (g_SessionState != NOT_IN_SESSION)
+//	{
+//		printf("Quick refocus\n");
+//		g_SessionState = QUICK_REFOCUS;
+//	}
+}
+// Callback for when the focus is in progress
+void XN_CALLBACK_TYPE FocusProgress(const XnChar* strFocus, const XnPoint3D& ptPosition, XnFloat fProgress, void* UserCxt)
+{
+	printf("Focus progress: %s @(%f,%f,%f): %f\n", strFocus, ptPosition.X, ptPosition.Y, ptPosition.Z, fProgress);
+}
+
+void XN_CALLBACK_TYPE Swipe_SwipeUp(XnFloat fVelocity, XnFloat fAngle, void* cxt)
+{
+	printf("SWIPED Up!\n");
+
+}
+
+void XN_CALLBACK_TYPE Swipe_SwipeLeft(XnFloat fVelocity, XnFloat fAngle, void* cxt)
+{
+	if(current_slide_index > 1){
+		printf("SWIPED Left\n");
+		current_slide_index--;
+		current_slide = getSlide(current_slide_index);
+	}
+}
+
+void XN_CALLBACK_TYPE Swipe_SwipeRight(XnFloat fVelocity, XnFloat fAngle, void* cxt)
+{
+	if(current_slide_index < 10){
+		printf("SWIPED Right\n");
+		current_slide_index++;
+		current_slide = getSlide(current_slide_index);
+	}
+}
+
+void XN_CALLBACK_TYPE Swipe_SwipeDown(XnFloat fVelocity, XnFloat fAngle, void* cxt)
+{
+	printf("SWIPED Down!\n");
+}
+
 extern unsigned char* pDepthTexBuf;
 extern XnUserID* aUsers;
+
+#include <XnUSB.h>
+#define VID_MICROSOFT 0x45e
+#define PID_NUI_MOTOR 0x02b0
+XN_USB_DEV_HANDLE dev;
+
 int start(){
 	pDepthTexBuf = (unsigned char *)malloc(sizeof(char)*(640*480*4));
 	aUsers  = (XnUserID *)malloc(sizeof(XnUserID)*15);
@@ -409,7 +491,21 @@ int start(){
 	CHECK_RC(rc, "Find image generator");
 	rc = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
 	CHECK_RC(rc, "Find user generator");
+	rc = g_Context.FindExistingNode(XN_NODE_TYPE_HANDS, g_HandsGenerator);
+	CHECK_RC(rc, "Find hands generator");
+	rc = g_Context.FindExistingNode(XN_NODE_TYPE_GESTURE, g_GestureGenerator);
+	CHECK_RC(rc, "Find gesture generator");
 
+	XnCallbackHandle hGestureIntermediateStageCompleted, hGestureProgress, hGestureReadyForNextIntermediateStage;
+	g_GestureGenerator.RegisterToGestureIntermediateStageCompleted(GestureIntermediateStageCompletedHandler, NULL, hGestureIntermediateStageCompleted);
+	g_GestureGenerator.RegisterToGestureReadyForNextIntermediateStage(GestureReadyForNextIntermediateStageHandler, NULL, hGestureReadyForNextIntermediateStage);
+	g_GestureGenerator.RegisterGestureCallbacks(NULL, GestureProgressHandler, NULL, hGestureProgress);
+
+	g_pSessionManager = new XnVSessionManager;
+	rc = g_pSessionManager->Initialize(&g_Context, "Click,Wave", "RaiseHand");
+	CHECK_RC(rc, "SessionManager::Initialize");
+
+	g_pSessionManager->RegisterSession(NULL, SessionStarting, SessionEnding, FocusProgress);
 
 	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON) ||
 			!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_POSE_DETECTION))
@@ -419,6 +515,19 @@ int start(){
 	}
 
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
+
+	broadcaster = new XnVBroadcaster;
+
+	//SwipeDetector
+	XnVSwipeDetector *swipeDetector = new XnVSwipeDetector();
+	swipeDetector->RegisterSwipeUp(NULL, &Swipe_SwipeUp);
+	swipeDetector->RegisterSwipeDown(NULL, &Swipe_SwipeDown);
+	swipeDetector->RegisterSwipeLeft(NULL, &Swipe_SwipeLeft);
+	swipeDetector->RegisterSwipeRight(NULL, &Swipe_SwipeRight);
+	broadcaster->AddListener(swipeDetector);
+	g_pSessionManager->AddListener(broadcaster);
+
+	g_pDrawer = new XnVPointDrawer(20, g_DepthGenerator);
 
 	rc = g_Context.StartGeneratingAll();
 	CHECK_RC(rc, "StartGenerating");
@@ -431,48 +540,26 @@ int start(){
 	CHECK_RC(rc, "Register to calibration complete");
 	rc = g_UserGenerator.GetPoseDetectionCap().RegisterToPoseDetected(PoseDetected, NULL, hPoseCBs);
 	CHECK_RC(rc, "Register to pose detected");
-}
-//int main(int argc, char **argv)
-//{
-//	XnStatus rc = XN_STATUS_OK;
-//	xn::EnumerationErrors errors;
-//
-//	rc = g_Context.InitFromXmlFile(SAMPLE_XML_PATH, g_ScriptNode, &errors);
-//	CHECK_ERRORS(rc, errors, "InitFromXmlFile");
-//	CHECK_RC(rc, "InitFromXml");
-//
-//	rc = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
-//	CHECK_RC(rc, "Find depth generator");
-//	rc = g_Context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_ImageGenerator);
-//	CHECK_RC(rc, "Find image generator");
-//	rc = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
-//	CHECK_RC(rc, "Find user generator");
-//
-//
-//	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON) ||
-//		!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_POSE_DETECTION))
-//	{
-//		printf("User generator doesn't support either skeleton or pose detection.\n");
-//		return XN_STATUS_ERROR;
-//	}
-//
-//	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
-//
-//	rc = g_Context.StartGeneratingAll();
-//	CHECK_RC(rc, "StartGenerating");
-//
-//	XnCallbackHandle hUserCBs, hCalibrationStartCB, hCalibrationCompleteCB, hPoseCBs;
-//	g_UserGenerator.RegisterUserCallbacks(NewUser, LostUser, NULL, hUserCBs);
-//	rc = g_UserGenerator.GetSkeletonCap().RegisterToCalibrationStart(CalibrationStarted, NULL, hCalibrationStartCB);
-//	CHECK_RC(rc, "Register to calibration start");
-//	rc = g_UserGenerator.GetSkeletonCap().RegisterToCalibrationComplete(CalibrationCompleted, NULL, hCalibrationCompleteCB);
-//	CHECK_RC(rc, "Register to calibration complete");
-//	rc = g_UserGenerator.GetPoseDetectionCap().RegisterToPoseDetected(PoseDetected, NULL, hPoseCBs);
-//	CHECK_RC(rc, "Register to pose detected");
-//	glInit(&argc, argv);
-//	glutMainLoop();
-//}
 
+	motorAngle(0);
+
+}
+
+void motorAngle(int angle){
+	printf("%i\n",angle);
+	xnUSBInit();
+	xnUSBOpenDevice(VID_MICROSOFT, PID_NUI_MOTOR, NULL, NULL, &dev);
+	uint8_t empty[0x1];
+	angle = angle * 2;
+	xnUSBSendControl(dev,
+				  	  XN_USB_CONTROL_TYPE_VENDOR,
+					  0x31,
+					  (XnUInt16)angle,
+					  0x0,
+					  empty,
+					  0x0, 0);
+	xnUSBCloseDevice(dev);
+}
 
 
 
