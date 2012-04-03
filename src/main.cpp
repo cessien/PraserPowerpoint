@@ -30,6 +30,8 @@ bool presenter_layer = true;
 bool powerpoint_layer = true;
 volatile bool recording = false;
 
+extern float *pos;
+
 /**** GLUI Controls****/
 int motor;
 
@@ -66,6 +68,7 @@ float size = 0.5;
 float center;
 float ratio = 1.0;
 float left,right,top,bottom;
+float cx,cy;
 float * boundaries;
 //unsigned char * tdata;
 
@@ -74,11 +77,13 @@ void myGlutDisplay( void ) {
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
   if(powerpoint_layer){
+	  glColor4f(1,1,1,1);
 	  glPushMatrix();
 	  //Powerpoint Layer
 	  glEnable(GL_TEXTURE_2D);
 	  glBindTexture(GL_TEXTURE_2D, 10);
 	  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, current_slide);
 	  //glColor4f(0.5f,0.0f,0.0f,1.0f);
 	  glBegin(GL_POLYGON);
@@ -92,13 +97,15 @@ void myGlutDisplay( void ) {
   }
 
   if(presenter_layer){
+	  //glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+	  glColor4f(1,1,1,1);
 	  glPushMatrix();
 	  //Kinect Layer
 	  glEnable(GL_TEXTURE_2D);
 	  glBindTexture(GL_TEXTURE_2D, 1);
 	  glEnable (GL_BLEND);
 	  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	  kinectDisplay();
 	  //glColor4f(0.0f,0.0f,0.5f,1.0f);
@@ -118,8 +125,12 @@ void myGlutDisplay( void ) {
 		  glTexCoord2f(left,bottom); glVertex3f((center - size)*ratio, -1.0, 0.1);
 		  glTexCoord2f(left,top); glVertex3f((center - size)*ratio, -1.0 + size * 2, 0.1);
 		  glTexCoord2f(right,top); glVertex3f((center + size)*ratio, -1.0 + size * 2, 0.1);
+		  cx = (center + size)*ratio + ((center - size)*ratio - (center + size)*ratio)/2.0f;
+		  cy = -1.0f + (-1.0f + size * 2 - -1.0f)/2.0f;
+
 	  glEnd();
 	  glPopMatrix();
+	  glDisable (GL_BLEND);
 	  glDisable(GL_TEXTURE_2D);
   }
 
@@ -133,15 +144,51 @@ void myGlutDisplay( void ) {
 		glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE, tdata);
 		recordFrame(tdata);
 	}
+
+
 	glPushMatrix();
 	glBegin(GL_LINES);
-	 // 	glColor4f(1,0,0,1);
+	  	glColor4f(1,0,0,1);
 	  	glVertex3f(1,1,0);
 	  	glVertex3f(-1,-1,0);
 	  	//glVertex3f(,0,0);
 	  	//glVertex3f(1,1,0);
-
 	glEnd();
+	glPopMatrix();
+
+
+	glPushMatrix();
+		glColor4f(0, 0, 1, 1);
+		glPointSize(20);
+		glBegin(GL_POINTS);
+		//printf("DEBUG: %f %f\n", cx,cy);
+//		glVertex2f(cx,cy);
+
+		//<DEBUG>
+			//Bottom left
+			glVertex2f((center + size)*ratio, -1.0);
+			//Top right
+			glVertex2f((center - size)*ratio, -1.0 + size * 2);
+
+			//Center
+			glColor4f(1, 0, 1, 1);
+			glVertex2f(cx,cy);
+		//</DEBUG>
+		glEnd();
+
+		glPointSize(10);
+		glBegin(GL_POINTS);
+			glColor4f(0, 1, 0, 1);
+			//Com.X center offset from k_Orgin translate to offset from p_Orgin
+			//translate
+			float pX,pY;
+			pX = (center + size)*ratio + ((center - size)*ratio - (center + size)*ratio)*((pos[0]/640.0f - right)/(left - right));
+			pY = -1.0f + (-1.0f + size * 2.0f - -1.0f)*((pos[1]/480.0f - bottom)/(top - bottom));
+
+			glVertex2f(pX,pY);
+//			glVertex2f(center + left*2.0f-1.0f, center + -2.0f*(top -0.5f));
+			printf("X: %f, Y: %f\n", pX,pY);
+		glEnd();
 	glPopMatrix();
   glutSwapBuffers();
 }
@@ -185,6 +232,10 @@ void buttonCB(int button){
 		recording = false;
 		endRecord();
 		break;
+	case 102:
+//		current_slide_index;
+		current_slide = getSlide(current_slide_index);
+		break;
 	}
 }
 
@@ -222,6 +273,8 @@ void task1(){
 	new GLUI_Button(MediaBar, "Record",100,buttonCB);
 	new GLUI_Column(MediaBar);
 	new GLUI_Button(MediaBar, "Stop",101,buttonCB);
+	new GLUI_Column(MediaBar);
+	new GLUI_Spinner(MediaBar, "Slide", GLUI_SPINNER_INT, &current_slide_index, 102, buttonCB);
 
 	MediaBar->set_main_gfx_window( main_window );
 	PropertyBar->set_main_gfx_window( main_window );
