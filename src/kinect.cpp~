@@ -574,7 +574,7 @@ int start(){
 	swipeDetector->RegisterSwipeLeft(NULL, &Swipe_SwipeLeft);
 	swipeDetector->RegisterSwipeRight(NULL, &Swipe_SwipeRight);
 	broadcaster->AddListener(swipeDetector);
-
+	
 	//CircleDetector
 	circleDetector = new XnVCircleDetector();
 	circleDetector->RegisterCircle(NULL, &CircleCB);
@@ -588,7 +588,8 @@ int start(){
 	pushDetector->RegisterPush(NULL, &onPush);
 	broadcaster->AddListener(pushDetector);
 
-
+	g_pDrawer = new XnVPointDrawer(20, g_DepthGenerator);
+	
 	g_pSessionManager->AddListener(broadcaster);
 	rc = g_Context.StartGeneratingAll();
 	CHECK_RC(rc, "StartGenerating");
@@ -621,7 +622,4 @@ void motorAngle(int angle){
 					  0x0, 0);
 	xnUSBCloseDevice(dev);
 }
-
-
-
 
