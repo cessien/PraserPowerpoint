@@ -29,6 +29,10 @@ XnVPointDrawer* g_pDrawer;
 XnVSessionManager* g_pSessionManager;
 XnVBroadcaster* broadcaster;
 
+XnVSwipeDetector *swipeDetector;
+XnVCircleDetector *circleDetector;
+XnVPushDetector *pushDetector;
+
 extern int current_slide_index;
 extern unsigned char *current_slide;
 int LEFT, RIGHT, TOP, BOTTOM;
@@ -466,6 +470,51 @@ void XN_CALLBACK_TYPE Swipe_SwipeDown(XnFloat fVelocity, XnFloat fAngle, void* c
 	printf("SWIPED Down!\n");
 }
 
+int quickSlide = 1;
+void XN_CALLBACK_TYPE CircleCB(XnFloat fTimes, XnBool bConfident, const XnVCircle* pCircle, void* pUserCxt)
+{
+//	SetCircleLineColor(1, 0.1, 0.1);
+//	SetCircleColor(0.2, 0.2, 1.0);
+//	SetCircle(true, fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
+	glColor4f(1,0,1,1);
+	glRasterPos2i(20, 20);
+	XnChar strLabel[200];
+	quickSlide = (fTimes * 10 / 1);
+//	quickSlide = quickSlide % 10 + 1;
+	sprintf(strLabel, "%d", quickSlide);//fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
+//	current_slide = getSlide(quickSlide);
+
+//	sprintf(strLabel, "OMGWTFBBQ");
+
+	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
+}
+
+void XN_CALLBACK_TYPE NoCircleCB(XnFloat fLastValue, XnVCircleDetector::XnVNoCircleReason reason, void * pUserCxt)
+{
+//	SetCircleLineColor(0.7,0.7,0.7);
+//	SetCircleColor(1, 1, 1);
+	printf("CIRCLE STOPPED\n");
+	current_slide_index = quickSlide;
+	current_slide = getSlide(current_slide_index);
+}
+
+void XN_CALLBACK_TYPE Circle_PrimaryCreate(const XnVHandPointContext *cxt, const XnPoint3D& ptFocus, void * pUserCxt)
+{
+//	SetVisualFeedbackFrame(true, 0.1, 1, 0.1);
+//	printf("CIRCLE CREATED!!\n");
+}
+
+void XN_CALLBACK_TYPE Circle_PrimaryDestroy(XnUInt32 nID, void * pUserCxt)
+{
+//	SetVisualFeedbackFrame(true, 0.2, 0.7, 0.2);
+}
+
+void XN_CALLBACK_TYPE onPush(XnFloat fVelocity, XnFloat fAngle, void* UserCxt)
+{
+	printf("PUSH\n");
+	circleDetector->Reset();
+}
+
 extern unsigned char* pDepthTexBuf;
 extern XnUserID* aUsers;
 
@@ -519,16 +568,28 @@ int start(){
 	broadcaster = new XnVBroadcaster;
 
 	//SwipeDetector
-	XnVSwipeDetector *swipeDetector = new XnVSwipeDetector();
+	swipeDetector = new XnVSwipeDetector();
 	swipeDetector->RegisterSwipeUp(NULL, &Swipe_SwipeUp);
 	swipeDetector->RegisterSwipeDown(NULL, &Swipe_SwipeDown);
 	swipeDetector->RegisterSwipeLeft(NULL, &Swipe_SwipeLeft);
 	swipeDetector->RegisterSwipeRight(NULL, &Swipe_SwipeRight);
 	broadcaster->AddListener(swipeDetector);
+
+	//CircleDetector
+	circleDetector = new XnVCircleDetector();
+	circleDetector->RegisterCircle(NULL, &CircleCB);
+	circleDetector->RegisterNoCircle(NULL, &NoCircleCB);
+	circleDetector->RegisterPrimaryPointCreate(NULL, &Circle_PrimaryCreate);
+	circleDetector->RegisterPrimaryPointDestroy(NULL, &Circle_PrimaryDestroy);
+	broadcaster->AddListener(circleDetector);
+
+	//PushDetector
+	pushDetector = new XnVPushDetector();
+	pushDetector->RegisterPush(NULL, &onPush);
+	broadcaster->AddListener(pushDetector);
+
+
 	g_pSessionManager->AddListener(broadcaster);
-
-	g_pDrawer = new XnVPointDrawer(20, g_DepthGenerator);
-
 	rc = g_Context.StartGeneratingAll();
 	CHECK_RC(rc, "StartGenerating");
 
