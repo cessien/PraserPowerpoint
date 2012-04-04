@@ -18,6 +18,8 @@ Praser Application
 #include <queue>
 
 void task3();
+void DrawLine(float ax, float ay, float bx, float by, float width, float r, float g, float b, float a);
+void Circle( float x, float y, float rad,  float r, float g, float b, float a );
 int   main_window;
 int current_slide_index;
 unsigned char *current_slide;
@@ -26,7 +28,7 @@ unsigned char * tdata;
 int width = 1024;
 int height = 600;
 /**** properties ****/
-bool presenter_layer = true;
+bool presenter_layer = false;
 bool powerpoint_layer = true;
 volatile bool recording = false;
 
@@ -100,7 +102,7 @@ void myGlutDisplay( void ) {
 	  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	  kinectDisplay();
+//	  kinectDisplay();
 	  //glColor4f(0.0f,0.0f,0.5f,1.0f);
 	  boundaries = getBoundary();
 	  left = boundaries[0];
@@ -134,14 +136,20 @@ void myGlutDisplay( void ) {
 		recordFrame(tdata);
 	}
 	glPushMatrix();
-	glBegin(GL_LINES);
-	 // 	glColor4f(1,0,0,1);
-	  	glVertex3f(1,1,0);
-	  	glVertex3f(-1,-1,0);
-	  	//glVertex3f(,0,0);
-	  	//glVertex3f(1,1,0);
 
-	glEnd();
+//	for (float x=-1.0f; x<1.1f; x+=0.05f){
+//		for (float y=-1.0f; y<1.1f; y+=0.05f){
+//			//glutSwapBuffers();
+//			DrawLine(0,0,x+0.1f,y+0.1f,1,0,0,1,1);
+//		}
+//	}
+
+	//Circle( 0.5f, 0.5f, 0.5f, 1.0f ,0.0f ,0.0f ,1.0f );
+
+
+//	DrawLine(1,1,-1,-1,5,0,0,1,1);
+//	DrawLine(-1,-1,1,-1,5,0,1,1,1);
+//	DrawLine(1,-1,0,0,5,1,0,1,1);
 	glPopMatrix();
   glutSwapBuffers();
 }
@@ -174,6 +182,10 @@ void controlCB(int control){
 
 void buttonCB(int button){
 	switch(button){
+	case 1:
+		printf("Split Initiate! \n");
+		//method of split
+		break;
 	case 3:
 		motorAngle(motor);
 		break;
@@ -185,9 +197,12 @@ void buttonCB(int button){
 		recording = false;
 		endRecord();
 		break;
+
 	}
 }
+void Split(){
 
+}
 void task1(){
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
 	glutInitWindowPosition( 50, 50 );
@@ -204,7 +219,8 @@ void task1(){
 
 	GLUI_Panel *temp = new GLUI_Panel(PropertyBar,"Layers", GLUI_PANEL_EMBOSSED);
 	new GLUI_Checkbox( temp, "Laser", &laser, 0, controlCB ); //laser
-	new GLUI_Checkbox( temp, "Presenter", &presenter, 1, controlCB ); //presenter
+	GLUI_Checkbox *presenterbox = new GLUI_Checkbox( temp, "Presenter", &presenter, 1, controlCB ); //presenter
+	presenterbox->set_int_val(0);
 	new GLUI_Checkbox( temp, "PowerPoint", &powerpoint,  2, controlCB ); //powerpoint
 
 	new GLUI_Separator(PropertyBar);
@@ -216,6 +232,11 @@ void task1(){
 
 	new GLUI_Separator(PropertyBar);
 	GLUI_Spinner *t = new GLUI_Spinner(PropertyBar, "Motor", GLUI_SPINNER_INT, &motor, 3, buttonCB);
+	t->set_int_limits(-27,27,GLUI_LIMIT_CLAMP);
+	t->set_speed(2);
+
+	new GLUI_Separator(PropertyBar);
+	t = new GLUI_Spinner(PropertyBar, "Slides", GLUI_SPINNER_INT, &motor, 4, buttonCB);
 	t->set_int_limits(-27,27,GLUI_LIMIT_CLAMP);
 	t->set_speed(2);
 
@@ -279,6 +300,37 @@ void task3(){
 		}
 	}
 }
+void DrawLine( float ax, float ay, float bx, float by, float width, float r, float g, float b, float a )
+{
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f( r, g, b, a);
+
+    glLineWidth(width);
+    glBegin(GL_LINES);
+    glVertex2f( ax, ay);
+    glVertex2f( bx, by);
+    glEnd();
+
+    glDisable(GL_BLEND);
+    glEnable(GL_TEXTURE_2D);
+    glColor4f( 1, 1, 1, 1);
+}
+void Circle( float x, float y, float rad, float r, float g, float b, float a )
+{
+	glColor4f( r, g, b, a);
+	glBegin( GL_TRIANGLE_FAN );
+        glVertex2f( x, y );
+        float i;
+        for(i = 0.0f; i <= 2.0f * M_PI + 0.1f; i += 0.001f )
+        {
+            glVertex2f( x + 480.0f/640.0f*sin( i ) * rad, y + cos( i ) * rad );
+            //glutSwapBuffers();
+        }
+    glEnd();
+    glColor4f( 1, 1, 1, 1);
+}
 
 /**************************************** main() ********************/
 int main(int argc, char* argv[])
@@ -287,20 +339,24 @@ int main(int argc, char* argv[])
   current_slide_index = 1;
   current_slide = getSlide(current_slide_index);
 //  tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
-  start();
+//  start();
+
+
 
 
   using namespace boost;
-  thread thread1(task1);
-  thread thread2(task2);
+//  thread thread1(task1);
+//  thread thread2(task2);
 //  thread thread3(task3);
 
 //  thread threaddd4(task1);
 
 //  task1();
-  thread1.join();
+//  thread1.join();
+  task1();
 //  thread2.join();
 //  thread3.join();
  // glutMainLoop();
+  printf("END");
   return EXIT_SUCCESS;
 }
