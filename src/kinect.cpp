@@ -40,6 +40,13 @@ extern int num_slides;
 int LEFT, RIGHT, TOP, BOTTOM;
 float CENTER;
 
+extern bool coverflowMode;
+
+int quickSlide;
+extern int numSlides;
+extern tile *icons;
+bool status_circle = false;
+
 //Returns an array of the boundaries in (left, right, top, bottom).
 float * getBoundary(){
 	float * temp = (float *)malloc(sizeof(float) * 5);
@@ -152,6 +159,8 @@ XnBool AssignPlayer(XnUserID user)
 	if (g_nPlayer != 0)
 		return FALSE;
 
+	printf("Player assigned?\n");
+
 	XnPoint3D com;
 	g_UserGenerator.GetCoM(user, com);
 	if (com.Z == 0)
@@ -189,8 +198,8 @@ void FindPlayer()
 	{
 		return;
 	}
-	XnUserID aUsers[1];
-	XnUInt16 nUsers = 1;
+	XnUserID aUsers[11];
+	XnUInt16 nUsers = 11;
 	g_UserGenerator.GetUsers(aUsers, nUsers);
 
 	for (int i = 0; i < nUsers; ++i)
@@ -313,7 +322,7 @@ void kinectDisplay (void)
 		//DRAW
 		g_DepthGenerator.GetMetaData(depthMD);
 		g_ImageGenerator.GetMetaData(imageMD);
-		g_UserGenerator.GetUserPixels(0, sceneMD);
+		g_UserGenerator.GetUserPixels(1, sceneMD);
 
 		DrawDepthMap(depthMD, sceneMD, g_nPlayer, imageMD);
 
@@ -357,11 +366,6 @@ void glutKeyboard (unsigned char key, int x, int y)
 		break;
 	}
 }
-
-
-
-
-
 
 void glInit (int * pargc, char ** argv)
 {
@@ -458,7 +462,7 @@ void XN_CALLBACK_TYPE Swipe_SwipeLeft(XnFloat fVelocity, XnFloat fAngle, void* c
 
 void XN_CALLBACK_TYPE Swipe_SwipeRight(XnFloat fVelocity, XnFloat fAngle, void* cxt)
 {
-	if(current_slide_index < 10){
+	if(current_slide_index < numSlides){
 		printf("SWIPED Right\n");
 		current_slide_index++;
 		current_slide = getSlide(current_slide_index);
@@ -470,17 +474,6 @@ void XN_CALLBACK_TYPE Swipe_SwipeDown(XnFloat fVelocity, XnFloat fAngle, void* c
 	printf("SWIPED Down!\n");
 }
 
-typedef struct {
-	unsigned char * texture;
-	float currentpos;
-	float currentheight;
-} tile;
-extern bool coverflowMode;
-
-int quickSlide;
-extern int numSlides;
-extern tile *icons;
-bool status_circle = false;
 void XN_CALLBACK_TYPE CircleCB(XnFloat fTimes, XnBool bConfident, const XnVCircle* pCircle, void* pUserCxt)
 {
 //	glRasterPos2i(20, 20);
@@ -515,7 +508,6 @@ void XN_CALLBACK_TYPE CircleCB(XnFloat fTimes, XnBool bConfident, const XnVCircl
 void XN_CALLBACK_TYPE NoCircleCB(XnFloat fLastValue, XnVCircleDetector::XnVNoCircleReason reason, void * pUserCxt)
 {
 	printf("<<DEBUG>> CIRCLE STOPPED\n");
-	coverflowMode = false;
 
 	//empty slides
 //	for(int i = 0; i < numSlides; i++){
@@ -540,8 +532,10 @@ void XN_CALLBACK_TYPE Circle_PrimaryDestroy(XnUInt32 nID, void * pUserCxt)
 
 void XN_CALLBACK_TYPE onPush(XnFloat fVelocity, XnFloat fAngle, void* UserCxt)
 {
+	coverflowMode = false;
+	printf("\nAngle: %f\n",fAngle);
 //	printf("PUSH\n");
-	if (status_circle&& fVelocity > 1.0f){
+	if (status_circle&& fVelocity > 0.5f){
 		printf("Velocity: %f\n" , fVelocity);
 		circleDetector->Reset();
 	}

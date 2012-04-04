@@ -93,6 +93,7 @@ XnPoint3D com;
 void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, XnUserID player, xn::ImageMetaData& imd)
 {
 
+	printf("ID: %i\n",player);
 	texWidth = 640;
 	texHeight = 480;
 
@@ -154,7 +155,7 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, Xn
 				nValue = *pDepth;
 				label = *pLabels;
 //				XnUInt32 nColorID = label % nColors;
-				if (label == 0)
+				if (label != 1)
 				{
 //					nColorID = nColors;
 					pDestImage[0] = 0;

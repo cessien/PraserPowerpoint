@@ -12,6 +12,12 @@
 #include <GL/gl.h>
 #include <GL/glut.h>
 
+typedef struct {
+	unsigned char * texture;
+	float currentpos;
+	float currentheight;
+} tile;
+
 float * getBoundary();
 int start();
 void StopCapture();

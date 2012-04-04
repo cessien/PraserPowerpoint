@@ -42,11 +42,11 @@ extern float *pos;
 /********* Animation vars ... dont touch! **********/
 float cover_flow_background_alpha = 0.0f;
 /**********END Animation vars **********************/
-typedef struct {
-	unsigned char * texture;
-	float currentpos;
-	float currentheight;
-} tile;
+//typedef struct {
+//	unsigned char * texture;
+//	float currentpos;
+//	float currentheight;
+//} tile;
 
 int numSlides = getNumSlides();
 tile *icons;
