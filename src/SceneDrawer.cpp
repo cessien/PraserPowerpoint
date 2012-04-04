@@ -17,6 +17,7 @@ extern float CENTER;
 #define MAX_DEPTH 10000
 float g_pDepthHist[MAX_DEPTH];
 
+float *pos;
 
 XnFloat Colors[][3] =
 {
@@ -162,7 +163,7 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, Xn
 //					pDestImage[0] = pixel->nRed;
 //					pDestImage[1] = pixel->nGreen;
 //					pDestImage[2] = pixel->nBlue;
-					pDestImage[3] = 0;
+					pDestImage[3] = 1;
 				} else {
 					pDestImage[0] = pixel->nRed;
 					pDestImage[1] = pixel->nGreen;
@@ -205,7 +206,7 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, Xn
 	g_UserGenerator.GetCoM(aUsers[0], com);
 
 
-	//CENTER = com.X;
+	CENTER = com.X;
 
 	//glDisable(GL_BLEND);
 	//glDisable(GL_TEXTURE_2D);
@@ -272,6 +273,7 @@ XnVPointDrawer::XnVPointDrawer(XnUInt32 nHistory, xn::DepthGenerator depthGenera
 	m_nHistorySize(nHistory), m_DepthGenerator(depthGenerator), m_bDrawDM(false), m_bFrameID(false)
 {
 	m_pfPositionBuffer = new XnFloat[nHistory*3];
+	pos = (float *)malloc(sizeof(float)*3);
 }
 
 // Destructor. Clear all data structures
@@ -317,7 +319,7 @@ void XnVPointDrawer::OnPointUpdate(const XnVHandPointContext* cxt)
 
 	if (bShouldPrint)printf("Point (%f,%f,%f)", ptProjective.X, ptProjective.Y, ptProjective.Z);
 	m_DepthGenerator.ConvertRealWorldToProjective(1, &ptProjective, &ptProjective);
-	if (bShouldPrint)printf(" -> (%f,%f,%f)\n", ptProjective.X, ptProjective.Y, ptProjective.Z);
+	//if (true)printf(" -> (%f,%f,%f)\n", ptProjective.X, ptProjective.Y, ptProjective.Z);
 
 	// Add new position to the history buffer
 	m_History[cxt->nID].push_front(ptProjective);
@@ -325,6 +327,10 @@ void XnVPointDrawer::OnPointUpdate(const XnVHandPointContext* cxt)
 	if (m_History[cxt->nID].size() > m_nHistorySize)
 		m_History[cxt->nID].pop_back();
 	bShouldPrint = false;
+
+	pos[0] = ptProjective.X;
+	pos[1] = ptProjective.Y;
+	pos[2] = 0;//ptProjective.Z;
 }
 
 // Handle destruction of an existing hand
@@ -369,7 +375,7 @@ void DrawRectangle(float topLeftX, float topLeftY, float bottomRightX, float bot
 	glVertexPointer(2, GL_FLOAT, 0, verts);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-	glFlush();
+	//glFlush();
 }
 void DrawTexture(float topLeftX, float topLeftY, float bottomRightX, float bottomRightY)
 {
@@ -427,25 +433,26 @@ void XnVPointDrawer::Draw() const
 			m_pfPositionBuffer[3*i + 2] = 0;//pt.Z();
 		}
 
+		//glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 		// Set color
 		XnUInt32 nColor = Id % nColors;
 		XnUInt32 nSingle = GetPrimaryID();
 		if (Id == GetPrimaryID())
 			nColor = 6;
 		// Draw buffer:
-		glColor4f(Colors[nColor][0],
-				Colors[nColor][1],
-				Colors[nColor][2],
-				1.0f);
+//		glColor4f(1,
+//				0,
+//				0,
+//				1.0f);
 		glPointSize(2);
 		glVertexPointer(3, GL_FLOAT, 0, m_pfPositionBuffer);
 		glDrawArrays(GL_LINE_STRIP, 0, i);
 
 
-		if (IsTouching(Id))
-		{
-			glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
-		}
+//		if (IsTouching(Id))
+//		{
+//			glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+//		}
 		glPointSize(8);
 		glDrawArrays(GL_POINTS, 0, 1);
 		glFlush();
@@ -478,6 +485,7 @@ void XnVPointDrawer::Update(XnVMessage* pMessage)
 		DrawFrameID(depthMD.FrameID());
 	}
 	// Draw hands
+	//printf("DRAWING\n");
 	Draw();
 	m_TouchingFOVEdge.clear();
 }

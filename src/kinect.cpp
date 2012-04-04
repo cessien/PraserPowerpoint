@@ -265,7 +265,7 @@ void XN_CALLBACK_TYPE CalibrationCompleted(xn::SkeletonCapability& skeleton, XnU
 	}
 }
 
-void DrawProjectivePoints(XnPoint3D& ptIn, int width, double r, double g, double b)
+/*void DrawProjectivePoints(XnPoint3D& ptIn, int width, double r, double g, double b)
 {
 	static XnFloat pt[3];
 
@@ -282,7 +282,7 @@ void DrawProjectivePoints(XnPoint3D& ptIn, int width, double r, double g, double
 
 	glFlush();
 
-}
+}*/
 
 unsigned char *image;
 xn::SceneMetaData sceneMD;
@@ -314,8 +314,6 @@ void kinectDisplay (void)
 		g_UserGenerator.GetUserPixels(0, sceneMD);
 
 		DrawDepthMap(depthMD, sceneMD, g_nPlayer, imageMD);
-		//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 640, 480, 0, GL_RGB, GL_UNSIGNED_BYTE, imageMD.RGB24Data());
-
 
 		if (g_nPlayer != 0)
 		{
@@ -591,6 +589,12 @@ int start(){
 	g_pDrawer = new XnVPointDrawer(20, g_DepthGenerator);
 	
 	g_pSessionManager->AddListener(broadcaster);
+
+
+	g_pDrawer = new XnVPointDrawer(20, g_DepthGenerator);
+	broadcaster->AddListener(g_pDrawer);
+	g_pSessionManager->AddListener(broadcaster);
+
 	rc = g_Context.StartGeneratingAll();
 	CHECK_RC(rc, "StartGenerating");
 
@@ -603,7 +607,7 @@ int start(){
 	rc = g_UserGenerator.GetPoseDetectionCap().RegisterToPoseDetected(PoseDetected, NULL, hPoseCBs);
 	CHECK_RC(rc, "Register to pose detected");
 
-	motorAngle(0);
+	motorAngle(6);
 
 }
 

@@ -25,4 +25,5 @@ C_UPPER_DEPS :=
 SUBDIRS := \
 src \
 . \
+.metadata/.plugins/org.eclipse.cdt.make.core \
 

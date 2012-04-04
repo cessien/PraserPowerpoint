@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <GL/gl.h>
 #include <png.h>
+#include <fstream>
+#include <iostream>
+
 #define TEXTURE_LOAD_ERROR 0
 
 unsigned char* raw_texture_load(const char *filename, int width, int height) {
@@ -131,8 +134,26 @@ unsigned char* raw_texture_load(const char *filename, int width, int height) {
 	return image_data;
 }
 
+int getNumSlides(){
+	int count = 0;
+	char temp[] = "                 ";
+	unsigned char *result;
+
+	for(int i = 1; i < 100; i++){
+		sprintf(temp,"slides/S%d.PNG",i);
+		result = raw_texture_load(temp,960,720);
+		if(result == 0)
+			break;
+		else
+			count++;
+		delete(result);
+	}
+
+	return count;
+}
+
 unsigned char * getSlide(int slide){
-	char temp[] = "               ";
+	char temp[] = "                 ";
 //	if(slide > 9) {
 //		temp = calloc(sizeof(char) * 15);
 //	} else {
