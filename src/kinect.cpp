@@ -14,6 +14,7 @@
 #include "kinect.h"
 #include "XnVNite.h"
 #include "powerpoint.h"
+#include <algorithm>
 
 xn::Context g_Context;
 xn::ScriptNode g_ScriptNode;
@@ -469,27 +470,60 @@ void XN_CALLBACK_TYPE Swipe_SwipeDown(XnFloat fVelocity, XnFloat fAngle, void* c
 	printf("SWIPED Down!\n");
 }
 
+typedef struct {
+	unsigned char * texture;
+	float currentpos;
+	float currentheight;
+} tile;
+extern bool coverflowMode;
+
 int quickSlide;
+extern int numSlides;
+extern tile *icons;
 bool status_circle = false;
 void XN_CALLBACK_TYPE CircleCB(XnFloat fTimes, XnBool bConfident, const XnVCircle* pCircle, void* pUserCxt)
 {
-	glColor4f(1,0,1,1);
-	glRasterPos2i(20, 20);
-	XnChar strLabel[20];
-	int num_slidess = 10;
-	quickSlide = (fTimes * 10 / 1);
-//	printf("ftimes:: %f\n", fTimes);
-	quickSlide = (quickSlide % num_slidess) + 1;
+//	glRasterPos2i(20, 20);
+//	XnChar strLabel[20];
+	if(!coverflowMode){
+		//icons = (tile *)malloc(sizeof(tile)*numSlides);
 
-	sprintf(strLabel, "%d", quickSlide);//fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
+//		for(int i = 1; i <= numSlides; i++){
+//			tile temp;
+//			temp.texture = getSlide(i);
+//			temp.currentpos = 1.0f;
+//			temp.currentheight = 1.0f;
+//			icons[i-1] = temp;
+//		}
+		coverflowMode = true;
+	}
+
+//	if(fTimes <= (numSlides - current_slide_index) && fTimes >= 1){
+		quickSlide = (fTimes * 0.4 * 10 / 1) + 1;
+//		//	printf("ftimes:: %f\n", fTimes);
+//	}
+
+
+	quickSlide = std::max(quickSlide, -1*current_slide_index);
+	quickSlide = std::min(quickSlide, numSlides - current_slide_index);
+
+//	sprintf(strLabel, "%d", quickSlide);//fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
 	status_circle = true;
-	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
+//	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
 }
 
 void XN_CALLBACK_TYPE NoCircleCB(XnFloat fLastValue, XnVCircleDetector::XnVNoCircleReason reason, void * pUserCxt)
 {
 	printf("<<DEBUG>> CIRCLE STOPPED\n");
-	current_slide_index = quickSlide;
+	coverflowMode = false;
+
+	//empty slides
+//	for(int i = 0; i < numSlides; i++){
+//		delete(icons[i].texture);
+//	}
+
+
+	current_slide_index += quickSlide;
 	current_slide = getSlide(current_slide_index);
 	status_circle = false;
 }
@@ -507,7 +541,7 @@ void XN_CALLBACK_TYPE Circle_PrimaryDestroy(XnUInt32 nID, void * pUserCxt)
 void XN_CALLBACK_TYPE onPush(XnFloat fVelocity, XnFloat fAngle, void* UserCxt)
 {
 //	printf("PUSH\n");
-	if (status_circle){
+	if (status_circle&& fVelocity > 1.0f){
 		printf("Velocity: %f\n" , fVelocity);
 		circleDetector->Reset();
 	}
@@ -578,11 +612,9 @@ int start(){
 	swipeDetector->RegisterSwipeRight(NULL, &Swipe_SwipeRight);
 	broadcaster->AddListener(swipeDetector);
 
-<<<<<<< HEAD
 	g_pDrawer = new XnVPointDrawer(20, g_DepthGenerator);
 	broadcaster->AddListener(g_pDrawer);
 	g_pSessionManager->AddListener(broadcaster);
-=======
 	//CircleDetector
 	circleDetector = new XnVCircleDetector();
 	circleDetector->RegisterCircle(NULL, &CircleCB);
@@ -596,7 +628,6 @@ int start(){
 	pushDetector->RegisterPush(NULL, &onPush);
 	pushDetector->RegisterStabilized(NULL, &onStable);
 	broadcaster->AddListener(pushDetector);
->>>>>>> b5cfdb0b4319faf6056455e9fc73ab508850f729
 
 	g_pSessionManager->AddListener(broadcaster);
 	rc = g_Context.StartGeneratingAll();

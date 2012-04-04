@@ -21,6 +21,7 @@ void task3();
 int main_window;
 int display_window;
 int current_slide_index;
+extern int quickSlide;
 unsigned char *current_slide;
 unsigned char * tdata;
 
@@ -277,7 +278,7 @@ void myGlutDisplay( void ) {
 		glEnd();
 		for(int i = numSlides - 1; i >= 0; i--) {
 //			printf("DBG: i:%i, current_slide_index:%i, segments:%i, final:%f\n",i,current_slide_index,segments,2.0f*((i - current_slide_index - (float)segments/2.0f)/(float)segments - 0.5f));
-			tX = (i - current_slide_index)/((float)segments/2.0f);
+			tX = (i + 1 - (current_slide_index + quickSlide))/((float)segments/2.0f);
 			if(tX < 1.0f/(segments/2.0f) && tX > -1.0f/(segments/2.0f)){
 				tY = (-600.0f/1024.0f*0.5f*(1.0f/(segments/2.0f))*1.0f/(segments/2.0f) + 0.5f) * nX2*nX2 - 0.3f;
 			} else{
@@ -300,7 +301,7 @@ void myGlutDisplay( void ) {
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, icons[i].texture);
 			glBegin(GL_POLYGON);
 			glColor4f(1,1,1,1);
-			if(i == current_slide_index) icon_size *=2;
+			if(i == current_slide_index - 1 + quickSlide) icon_size *=2;
 			glTexCoord2f(0.0,1.0);glVertex3f(nX2 - icon_size, nY2 + icon_size, 0);
 			glTexCoord2f(0.0,0.0);glVertex3f(nX2 - icon_size, nY2 - icon_size, 0);
 			glTexCoord2f(1.0,0.0);glVertex3f(nX2 + icon_size, nY2 - icon_size, 0);
@@ -495,9 +496,18 @@ void task3(){
 /**************************************** main() ********************/
 int main(int argc, char* argv[])
 {
-  glutInit(&argc, argv);
-  current_slide_index = 1;
-  current_slide = getSlide(current_slide_index);
+	glutInit(&argc, argv);
+	current_slide_index = 1;
+	current_slide = getSlide(current_slide_index);
+	icons = (tile *)malloc(sizeof(tile)*numSlides);
+
+	for(int i = 1; i <= numSlides; i++){
+		tile temp;
+		temp.texture = getSlide(i);
+		temp.currentpos = 1.0f;
+		temp.currentheight = 1.0f;
+		icons[i-1] = temp;
+	}
 //  tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
   start();
 
