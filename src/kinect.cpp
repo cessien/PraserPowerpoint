@@ -35,6 +35,7 @@ XnVPushDetector *pushDetector;
 
 extern int current_slide_index;
 extern unsigned char *current_slide;
+extern int num_slides;
 int LEFT, RIGHT, TOP, BOTTOM;
 float CENTER;
 
@@ -470,38 +471,34 @@ void XN_CALLBACK_TYPE Swipe_SwipeDown(XnFloat fVelocity, XnFloat fAngle, void* c
 	printf("SWIPED Down!\n");
 }
 
-int quickSlide = 1;
+int quickSlide;
+bool status_circle = false;
 void XN_CALLBACK_TYPE CircleCB(XnFloat fTimes, XnBool bConfident, const XnVCircle* pCircle, void* pUserCxt)
 {
-//	SetCircleLineColor(1, 0.1, 0.1);
-//	SetCircleColor(0.2, 0.2, 1.0);
-//	SetCircle(true, fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
 	glColor4f(1,0,1,1);
 	glRasterPos2i(20, 20);
-	XnChar strLabel[200];
+	XnChar strLabel[20];
+	int num_slidess = 10;
 	quickSlide = (fTimes * 10 / 1);
-//	quickSlide = quickSlide % 10 + 1;
+//	printf("ftimes:: %f\n", fTimes);
+	quickSlide = (quickSlide % num_slidess) + 1;
+
 	sprintf(strLabel, "%d", quickSlide);//fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
-//	current_slide = getSlide(quickSlide);
-
-//	sprintf(strLabel, "OMGWTFBBQ");
-
+	status_circle = true;
 	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
 }
 
 void XN_CALLBACK_TYPE NoCircleCB(XnFloat fLastValue, XnVCircleDetector::XnVNoCircleReason reason, void * pUserCxt)
 {
-//	SetCircleLineColor(0.7,0.7,0.7);
-//	SetCircleColor(1, 1, 1);
-	printf("CIRCLE STOPPED\n");
+	printf("<<DEBUG>> CIRCLE STOPPED\n");
 	current_slide_index = quickSlide;
 	current_slide = getSlide(current_slide_index);
+	status_circle = false;
 }
 
 void XN_CALLBACK_TYPE Circle_PrimaryCreate(const XnVHandPointContext *cxt, const XnPoint3D& ptFocus, void * pUserCxt)
 {
-//	SetVisualFeedbackFrame(true, 0.1, 1, 0.1);
-//	printf("CIRCLE CREATED!!\n");
+//	printf("<<DEBUG>> CIRCLE CREATED!!\n");
 }
 
 void XN_CALLBACK_TYPE Circle_PrimaryDestroy(XnUInt32 nID, void * pUserCxt)
@@ -511,8 +508,16 @@ void XN_CALLBACK_TYPE Circle_PrimaryDestroy(XnUInt32 nID, void * pUserCxt)
 
 void XN_CALLBACK_TYPE onPush(XnFloat fVelocity, XnFloat fAngle, void* UserCxt)
 {
-	printf("PUSH\n");
-	circleDetector->Reset();
+//	printf("PUSH\n");
+	if (status_circle){
+		printf("Velocity: %f\n" , fVelocity);
+		circleDetector->Reset();
+	}
+}
+
+void XN_CALLBACK_TYPE onStable(XnFloat fVelocity, void* UserCxt)
+{
+//	printf("STABLE???\n");
 }
 
 extern unsigned char* pDepthTexBuf;
@@ -586,8 +591,8 @@ int start(){
 	//PushDetector
 	pushDetector = new XnVPushDetector();
 	pushDetector->RegisterPush(NULL, &onPush);
+	pushDetector->RegisterStabilized(NULL, &onStable);
 	broadcaster->AddListener(pushDetector);
-
 
 	g_pSessionManager->AddListener(broadcaster);
 	rc = g_Context.StartGeneratingAll();
