@@ -12,6 +12,28 @@
 #include <XnCppWrapper.h>
 #include <XnVPointControl.h>
 
+
+void glPrintString(void *font, char *str);
+void DrawLimb(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2);
+void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, XnUserID player, xn::ImageMetaData& imd);
+
+//	void XnVPointDrawer::SetDepthMap(XnBool bDrawDM){};
+//	void XnVPointDrawer::SetFrameID(XnBool bFrameID){};
+//	void XnVPointDrawer::OnPointCreate(const XnVHandPointContext* cxt){};
+//	void XnVPointDrawer::OnPointUpdate(const XnVHandPointContext* cxt){};
+//	void XnVPointDrawer::OnPointDestroy(XnUInt32 nID){};
+unsigned int getClosestPowerOfTwo(unsigned int n);
+GLuint initTexture(void** buf, int& width, int& height);
+void DrawRectangle(float topLeftX, float topLeftY, float bottomRightX, float bottomRightY);
+void DrawTexture(float topLeftX, float topLeftY, float bottomRightX, float bottomRightY);
+void DrawFrameID(XnUInt32 nFrameID);
+//	XnBool XnVPointDrawer::IsTouching(XnUInt32 id) const{};
+//	void XnVPointDrawer::Draw() const{};
+//	void XnVPointDrawer::SetTouchingFOVEdge(XnUInt32 nID){};
+//	void XnVPointDrawer::Update(XnVMessage* pMessage){};
+
+
+
 void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, XnUserID player, xn::ImageMetaData &imd);
 //void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, XnUserID player);
 unsigned char* raw_texture_load(const char *filename, int width, int height);
@@ -66,6 +88,8 @@ public:
 	void SetFrameID(XnBool bFrameID);
 
 	void SetTouchingFOVEdge(XnUInt32 nID);
+
+
 protected:
 	XnBool IsTouching(XnUInt32 nID) const;
 	// Number of previous position to store for each hand

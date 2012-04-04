@@ -18,7 +18,8 @@ Praser Application
 #include <queue>
 
 void task3();
-int   main_window;
+int main_window;
+int display_window;
 int current_slide_index;
 unsigned char *current_slide;
 unsigned char * tdata;
@@ -29,8 +30,12 @@ int height = 600;
 bool presenter_layer = true;
 bool powerpoint_layer = true;
 bool coverflowMode = false;
+bool splitMode = false;
 volatile bool recording = false;
 int segments = 7;
+
+float window1[] = {-1,1,-1,1};
+float window2[] = {-1,1,-1,1};
 
 extern float *pos;
 /********* Animation vars ... dont touch! **********/
@@ -39,6 +44,7 @@ float cover_flow_background_alpha = 0.0f;
 typedef struct {
 	unsigned char * texture;
 	float currentpos;
+	float currentheight;
 } tile;
 
 int numSlides = getNumSlides();
@@ -84,8 +90,9 @@ float left,right,top,bottom;
 float cx,cy;
 float * boundaries;
 //unsigned char * tdata;
-float icon_size, tX, nX2, nY2;
-
+float icon_size, tX, tY, nX2, nY2;
+float n1,n2,n3,n4;
+float m1,m2,m3,m4;
 void myGlutDisplay( void ) {
   glClearColor( .0f, .0f, .0f, 1.0f );
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -100,12 +107,55 @@ void myGlutDisplay( void ) {
 	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, current_slide);
 	  //glColor4f(0.5f,0.0f,0.0f,1.0f);
+	  if(splitMode){
+		  n1 = -1;
+		  n2 = 0 + (window1[1] - 0)/2.0f;
+		  n3 = 0 + (window1[2] - 0)/2.0f;
+		  n4 = 1;
+		  window1[1] = window1[1]/2.0f;
+		  window1[2] = window1[2]/2.0f;
+
+		  m1 = 0 + (window2[1])/2.0f;
+		  m2 = 1;
+		  m3 = 0 + (window2[2] - 0)/2.0f;
+		  m4 = 1;
+		  window2[1] = 0 + (window2[1]/2.0f);
+		  window2[2] = window2[2]/2.0f;
+
+	  } else {
+		  n1 = -1; n2 = 1;
+		  n3 = -1; n4 = 1;
+
+		  m1 = -1; m2 = 1;
+		  m3 = -1; m4 = 1;
+		  window1[0] = -1;
+	  	  window1[1] = 1;
+		  window1[2] = -1;
+		  window1[3] = 1;
+		  window2[0] = -1;
+		  window2[1] = 1;
+		  window2[2] = -1;
+		  window2[3] = 1;
+	  }
+
 	  glBegin(GL_POLYGON);
-		  glTexCoord2f(0.0,1.0); glVertex3f(-1.0, 1.0, 0.0);
-		  glTexCoord2f(1.0,1.0); glVertex3f(1.0, 1.0, 0.0);
-		  glTexCoord2f(1.0,0.0); glVertex3f(1.0, -1.0, 0.0);
-		  glTexCoord2f(0.0,0.0); glVertex3f(-1.0, -1.0, 0.0);
+			  glTexCoord2f(0.0,1.0); glVertex3f(n1, n4, 0.0);
+			  glTexCoord2f(1.0,1.0); glVertex3f(n2, n4, 0.0);
+			  glTexCoord2f(1.0,0.0); glVertex3f(n2, n3, 0.0);
+			  glTexCoord2f(0.0,0.0); glVertex3f(n1, n3, 0.0);
 	  glEnd();
+
+	  if(splitMode){
+		 // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, icons[current_slide_index + 1].texture);
+
+		  glBegin(GL_POLYGON);
+				  glTexCoord2f(0.0,1.0); glVertex3f(m1, m4, 0.0);
+				  glTexCoord2f(1.0,1.0); glVertex3f(m2, m4, 0.0);
+				  glTexCoord2f(1.0,0.0); glVertex3f(m2, m3, 0.0);
+				  glTexCoord2f(0.0,0.0); glVertex3f(m1, m3, 0.0);
+		  glEnd();
+	  }
+
 	  glDisable(GL_TEXTURE_2D);
 	  glPopMatrix();
   }
@@ -160,15 +210,15 @@ void myGlutDisplay( void ) {
 	}
 
 
-	glPushMatrix();
-	glBegin(GL_LINES);
-	  	glColor4f(1,0,0,1);
-	  	glVertex3f(1,1,0);
-	  	glVertex3f(-1,-1,0);
-	  	//glVertex3f(,0,0);
-	  	//glVertex3f(1,1,0);
-	glEnd();
-	glPopMatrix();
+//	glPushMatrix();
+//	glBegin(GL_LINES);
+//	  	glColor4f(1,0,0,1);
+//	  	glVertex3f(1,1,0);
+//	  	glVertex3f(-1,-1,0);
+//	  	//glVertex3f(,0,0);
+//	  	//glVertex3f(1,1,0);
+//	glEnd();
+//	glPopMatrix();
 
 
 	glPushMatrix();
@@ -228,16 +278,20 @@ void myGlutDisplay( void ) {
 		for(int i = numSlides - 1; i >= 0; i--) {
 //			printf("DBG: i:%i, current_slide_index:%i, segments:%i, final:%f\n",i,current_slide_index,segments,2.0f*((i - current_slide_index - (float)segments/2.0f)/(float)segments - 0.5f));
 			tX = (i - current_slide_index)/((float)segments/2.0f);
+			if(tX < 1.0f/(segments/2.0f) && tX > -1.0f/(segments/2.0f)){
+				tY = (-600.0f/1024.0f*0.5f*(1.0f/(segments/2.0f))*1.0f/(segments/2.0f) + 0.5f) * nX2*nX2 - 0.3f;
+			} else{
+				tY = -600.0f/1024.0f*0.5f*nX2*nX2 + 0.5f;
+			}
 //			nX2 = tX + (icons[i].currentpos - tX)/2.0f;
 
 			nX2 = (tX + icons[i].currentpos)/2.0f;
+//			nY2 = (tY + icons[i].currentheight)/2.0f;
+			nY2 = tY;
+
 //			printf("tX: %f\n", tX);
 			//if(i == current_slide_index)
-			if(tX < 0.000001 && tX > -0.000001){
-				nY2 = -0.3f;
-			} else{
-				nY2 = -600.0f/1024.0f*0.5f*nX2*nX2 + 0.5f;
-			}
+
 			icon_size = 0.2f - 0.1f*nX2;
 			glEnable(GL_TEXTURE_2D);
 		    glBindTexture(GL_TEXTURE_2D, 100);
@@ -245,11 +299,12 @@ void myGlutDisplay( void ) {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, icons[i].texture);
 			glBegin(GL_POLYGON);
-			glColor4f(1,1,1,0.9f);
-			glTexCoord2f(0.0,1.0);glVertex3f(nX2 - icon_size, nY2 + icon_size + .2*nX2, 0);
-			glTexCoord2f(0.0,0.0);glVertex3f(nX2 - icon_size, nY2 - icon_size - .2*nX2, 0);
-			glTexCoord2f(1.0,0.0);glVertex3f(nX2 + icon_size, nY2 - icon_size - .2*nX2, 0);
-			glTexCoord2f(1.0,1.0);glVertex3f(nX2 + icon_size, nY2 + icon_size + .2*nX2, 0);
+			glColor4f(1,1,1,1);
+			if(i == current_slide_index) icon_size *=2;
+			glTexCoord2f(0.0,1.0);glVertex3f(nX2 - icon_size, nY2 + icon_size, 0);
+			glTexCoord2f(0.0,0.0);glVertex3f(nX2 - icon_size, nY2 - icon_size, 0);
+			glTexCoord2f(1.0,0.0);glVertex3f(nX2 + icon_size, nY2 - icon_size, 0);
+			glTexCoord2f(1.0,1.0);glVertex3f(nX2 + icon_size, nY2 + icon_size, 0);
 			glEnd();
 			glDisable(GL_TEXTURE_2D);
 			icons[i].currentpos = nX2;
@@ -313,9 +368,19 @@ void buttonCB(int button){
 				tile temp;
 				temp.texture = getSlide(i);
 				temp.currentpos = 1.0f;
+				temp.currentheight = 1.0f;
 				icons[i-1] = temp;
 			}
 			coverflowMode = true;
+		}
+		break;
+	case 1:
+		if(splitMode) {
+			splitMode = false;
+
+		}
+		else {
+			splitMode = true;
 		}
 		break;
 	case 100:
@@ -340,9 +405,9 @@ void task1(){
 	glViewport(0,0,width,height);
 	main_window = glutCreateWindow( "Kinect PowerPoint Prototype" );
 	glutDisplayFunc(myGlutDisplay);
-
 	GLUI_Master.set_glutReshapeFunc( Reshape );
 
+//	display_window = glutCreateWindow( "Display" );
 	/***************** GLUI window components ***********************/
 	GLUI *PropertyBar = GLUI_Master.create_glui_subwindow(main_window, GLUI_SUBWINDOW_RIGHT);
 	GLUI *MediaBar = GLUI_Master.create_glui_subwindow( main_window , GLUI_SUBWINDOW_BOTTOM);
