@@ -28,9 +28,22 @@ int height = 600;
 /**** properties ****/
 bool presenter_layer = true;
 bool powerpoint_layer = true;
+bool coverflowMode = false;
 volatile bool recording = false;
+int segments = 7;
 
 extern float *pos;
+/********* Animation vars ... dont touch! **********/
+float cover_flow_background_alpha = 0.0f;
+/**********END Animation vars **********************/
+typedef struct {
+	unsigned char * texture;
+	float currentpos;
+} tile;
+
+int numSlides = getNumSlides();
+tile *icons;
+
 
 /**** GLUI Controls****/
 int motor;
@@ -71,6 +84,7 @@ float left,right,top,bottom;
 float cx,cy;
 float * boundaries;
 //unsigned char * tdata;
+float icon_size, tX, nX2, nY2;
 
 void myGlutDisplay( void ) {
   glClearColor( .0f, .0f, .0f, 1.0f );
@@ -187,9 +201,68 @@ void myGlutDisplay( void ) {
 
 			glVertex2f(pX,pY);
 //			glVertex2f(center + left*2.0f-1.0f, center + -2.0f*(top -0.5f));
-			printf("X: %f, Y: %f\n", pX,pY);
+//			printf("X: %f, Y: %f\n", pX,pY);
 		glEnd();
 	glPopMatrix();
+
+	if(coverflowMode){
+		glEnable (GL_BLEND);
+		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBegin(GL_POLYGON);
+			glColor4f(0,0,0,cover_flow_background_alpha);
+			glVertex3f(1.0f, -1.0f, 0.1f);
+			glVertex3f(-1.0f, -1.0f, 0.1f);
+			glVertex3f(-1.0f, 1.0f, 0.1f);
+			glVertex3f(1.0f, 1.0, 0.1);
+		glEnd();
+
+
+		glDisable (GL_BLEND);
+		glColor4f(1,1,0,1);
+		glPushMatrix();
+		glBegin(GL_LINES);
+			for(float i = 1.0f; i > -1.0f; i = i - 2.0f/100.0f){
+				glVertex3f(i, -600.0f/1024.0f*0.5f*i*i + 0.5f, 0);
+			}
+		glEnd();
+		for(int i = numSlides - 1; i >= 0; i--) {
+//			printf("DBG: i:%i, current_slide_index:%i, segments:%i, final:%f\n",i,current_slide_index,segments,2.0f*((i - current_slide_index - (float)segments/2.0f)/(float)segments - 0.5f));
+			tX = (i - current_slide_index)/((float)segments/2.0f);
+//			nX2 = tX + (icons[i].currentpos - tX)/2.0f;
+
+			nX2 = (tX + icons[i].currentpos)/2.0f;
+//			printf("tX: %f\n", tX);
+			//if(i == current_slide_index)
+			if(tX < 0.000001 && tX > -0.000001){
+				nY2 = -0.3f;
+			} else{
+				nY2 = -600.0f/1024.0f*0.5f*nX2*nX2 + 0.5f;
+			}
+			icon_size = 0.2f - 0.1f*nX2;
+			glEnable(GL_TEXTURE_2D);
+		    glBindTexture(GL_TEXTURE_2D, 100);
+		    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, icons[i].texture);
+			glBegin(GL_POLYGON);
+			glColor4f(1,1,1,0.9f);
+			glTexCoord2f(0.0,1.0);glVertex3f(nX2 - icon_size, nY2 + icon_size + .2*nX2, 0);
+			glTexCoord2f(0.0,0.0);glVertex3f(nX2 - icon_size, nY2 - icon_size - .2*nX2, 0);
+			glTexCoord2f(1.0,0.0);glVertex3f(nX2 + icon_size, nY2 - icon_size - .2*nX2, 0);
+			glTexCoord2f(1.0,1.0);glVertex3f(nX2 + icon_size, nY2 + icon_size + .2*nX2, 0);
+			glEnd();
+			glDisable(GL_TEXTURE_2D);
+			icons[i].currentpos = nX2;
+
+		}
+		glPopMatrix();
+		//Animations
+		if(cover_flow_background_alpha < 0.7f)
+			cover_flow_background_alpha+=.05f;
+	} else {
+		cover_flow_background_alpha = 0.0f;
+	}
+
   glutSwapBuffers();
 }
 
@@ -223,6 +296,27 @@ void buttonCB(int button){
 	switch(button){
 	case 3:
 		motorAngle(motor);
+		break;
+	case 0:
+		if(coverflowMode) {
+			coverflowMode = false;
+
+			//empty slides
+			for(int i = 0; i < numSlides; i++){
+				delete(icons[i].texture);
+			}
+		}
+		else {
+			icons = (tile *)malloc(sizeof(tile)*numSlides);
+
+			for(int i = 1; i <= numSlides; i++){
+				tile temp;
+				temp.texture = getSlide(i);
+				temp.currentpos = 1.0f;
+				icons[i-1] = temp;
+			}
+			coverflowMode = true;
+		}
 		break;
 	case 100:
 		recording = true;

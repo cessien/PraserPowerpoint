@@ -6,3 +6,4 @@
  */
 unsigned char* raw_texture_load(const char *filename, int width, int height);
 unsigned char * getSlide(int slide);
+int getNumSlides();

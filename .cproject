@@ -45,7 +45,6 @@
 									<listOptionValue builtIn="false" value="/usr/local/lib"/>
 								</option>
 								<option id="gnu.cpp.link.option.libs.438791757" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" value="glui"/>
 									<listOptionValue builtIn="false" value="glut"/>
 									<listOptionValue builtIn="false" value="png"/>
 									<listOptionValue builtIn="false" value="OpenNI"/>
@@ -53,6 +52,7 @@
 									<listOptionValue builtIn="false" value="xvidcore"/>
 									<listOptionValue builtIn="false" value="boost_thread"/>
 									<listOptionValue builtIn="false" value="XnVNite_1_4_1"/>
+									<listOptionValue builtIn="false" value="glui"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.311552317" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
