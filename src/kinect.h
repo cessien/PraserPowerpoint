@@ -18,6 +18,8 @@ typedef struct {
 	float currentheight;
 } tile;
 
+void updateSecondary();
+
 float * getBoundary();
 int start();
 void StopCapture();
