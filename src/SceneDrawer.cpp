@@ -8,12 +8,19 @@
 #include "SceneDrawer.h"
 #include <GL/gl.h>
 #include <GL/glut.h>
+#include <vector>
 
 extern xn::UserGenerator g_UserGenerator;
 extern xn::DepthGenerator g_DepthGenerator;
 extern int LEFT, RIGHT, TOP, BOTTOM;
 extern float CENTER;
 extern bool calibrationMode;
+extern bool annotateMode;
+extern std::vector<int> pIndex;
+extern int pointIndex;
+
+extern float centerScreen[2];
+extern unsigned int depthVal;
 
 #define MAX_DEPTH 10000
 float g_pDepthHist[MAX_DEPTH];
@@ -69,13 +76,13 @@ void DrawLimb(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2)
 	}
 
 	XnPoint3D pt[2];
-	pt[0] = joint1.position;
+	pt[0] = joint1.position;bool isCalibrated = false;
 	pt[1] = joint2.position;
 
 	g_DepthGenerator.ConvertRealWorldToProjective(2, pt, pt);
 	glVertex3i(pt[0].X, pt[0].Y, 0);
 	glVertex3i(pt[1].X, pt[1].Y, 0);
-	printf("Points: %f, %f, %f \n");
+//	printf("Points: %f, %f, %f \n");
 }
 
 unsigned char* pDepthTexBuf;
@@ -152,6 +159,13 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, Xn
 			{
 
 				nValue = *pDepth;
+				if(nX == (int)centerScreen[0] && nY == (int)centerScreen[1]){
+					if (calibrationMode){
+						depthVal = nValue;
+//						printf("depthVal: %i\n",depthVal);
+					}
+				}
+					//printf("Depth: %i \n",nValue);
 				label = *pLabels;
 //				XnUInt32 nColorID = label % nColors;
 				if (label != 1)
@@ -324,6 +338,18 @@ void XnVPointDrawer::OnPointUpdate(const XnVHandPointContext* cxt)
 	m_DepthGenerator.ConvertRealWorldToProjective(1, &ptProjective, &ptProjective);
 	//if (true)printf(" -> (%f,%f,%f)\n", ptProjective.X, ptProjective.Y, ptProjective.Z);
 
+	pos[0] = ptProjective.X;
+	pos[1] = ptProjective.Y;
+	pos[2] = ptProjective.Z;
+	printf("DEBUG: depthVal:%d pos[2]:%f\n",depthVal, pos[2]);
+	if (depthVal - pos[2] < 350){
+		annotateMode = true;
+	} else{
+		pIndex.push_back(pointIndex);
+		annotateMode = false;
+	}
+//	printf("JHS: %f\n",ptProjective.Z);
+
 	// Add new position to the history buffer
 	m_History[cxt->nID].push_front(ptProjective);
 	// Keep size of history buffer
@@ -331,9 +357,6 @@ void XnVPointDrawer::OnPointUpdate(const XnVHandPointContext* cxt)
 		m_History[cxt->nID].pop_back();
 	bShouldPrint = false;
 
-	pos[0] = ptProjective.X;
-	pos[1] = ptProjective.Y;
-	pos[2] = 0;//ptProjective.Z;
 }
 
 // Handle destruction of an existing hand
@@ -443,9 +466,9 @@ void XnVPointDrawer::Draw() const
 		if (Id == GetPrimaryID())
 			nColor = 6;
 		// Draw buffer:
-//		glColor4f(1,
-//				0,
-//				0,
+//		glColor4f(0,
+//				1,
+//				1,
 //				1.0f);
 		glPointSize(2);
 		glVertexPointer(3, GL_FLOAT, 0, m_pfPositionBuffer);
@@ -488,8 +511,8 @@ void XnVPointDrawer::Update(XnVMessage* pMessage)
 		DrawFrameID(depthMD.FrameID());
 	}
 	// Draw hands
-	//printf("DRAWING\n");
-	Draw();
+//	printf("DRAWING\n");
+//	Draw();
 	m_TouchingFOVEdge.clear();
 }
 

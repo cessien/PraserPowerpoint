@@ -16,6 +16,7 @@ Praser Application
 //#include <boost/thread/mutex.hpp>
 //#include <boost/bind.hpp>
 #include <queue>
+#include <vector>
 
 void task3();
 int main_window;
@@ -24,6 +25,10 @@ int current_slide_index;
 extern int quickSlide;
 unsigned char *current_slide;
 unsigned char * tdata;
+std::vector<XnPoint3D> pHistory;
+std::vector<int> pIndex;
+int pointIndex = -1;
+
 
 int width = 1024;
 int height = 600;
@@ -39,8 +44,12 @@ float screenPoints[8] = {-1.0f,-1.0f,
 						  1.0f,1.0f,
 						  -1.0f,1.0f
 						};
+float centerScreen[2] = {0.5f,0.5f};
+unsigned int depthVal = 5000;
+bool annotateMode = false;
 volatile bool recording = false;
 int segments = 7;
+float delta = (float)segments/2.0f;
 
 float window1[] = {-1,1,-1,1};
 float window2[] = {-1,1,-1,1};
@@ -109,7 +118,14 @@ float n1,n2,n3,n4;
 float m1,m2,m3,m4;
 float pX,pY;
 float Xa,Xb,Ya,Yb,m,b;
+float hX,hY;
+//float pX,pY,pX2,pY2;
+
 void myGlutDisplay( void ) {
+
+	centerScreen[0] = ((screenPoints[0] + screenPoints[4])/2.0f + 1.0f)/2.0f*640.0f;
+	centerScreen[1] = ((screenPoints[1] + screenPoints[5])/2.0f + 1.0f)/2.0f*480.0f;
+//	printf("DEBUG %f, %f",centerScreen[0],centerScreen[1]);
   glClearColor( .0f, .0f, .0f, 1.0f );
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
@@ -233,40 +249,6 @@ void myGlutDisplay( void ) {
 		recordFrame(tdata);
 	}
 
-	//Hand point
-	glPushMatrix();
-		glColor4f(0, 0, 1, 1);
-		glPointSize(20);
-		glBegin(GL_POINTS);
-		//printf("DEBUG: %f %f\n", cx,cy);
-//		glVertex2f(cx,cy);
-
-		//<DEBUG>
-			//Bottom left
-			glVertex2f((center + size)*ratio, -1.0);
-			//Top right
-			glVertex2f((center - size)*ratio, -1.0 + size * 2);
-
-			//Center
-			glColor4f(1, 0, 1, 1);
-			glVertex2f(cx,cy);
-		//</DEBUG>
-		glEnd();
-
-		glPointSize(10);
-		glBegin(GL_POINTS);
-			glColor4f(0, 1, 0, 1);
-			//Com.X center offset from k_Orgin translate to offset from p_Orgin
-			//translate
-			pX = (center + size)*ratio + ((center - size)*ratio - (center + size)*ratio)*((pos[0]/640.0f - right)/(left - right));
-			pY = -1.0f + (-1.0f + size * 2.0f - -1.0f)*((pos[1]/480.0f - bottom)/(top - bottom));
-
-			glVertex2f(pX,pY);
-//			glVertex2f(center + left*2.0f-1.0f, center + -2.0f*(top -0.5f));
-//			printf("X: %f, Y: %f\n", pX,pY);
-		glEnd();
-	glPopMatrix();
-
 	if(coverflowMode){
 		glEnable (GL_BLEND);
 		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -287,11 +269,12 @@ void myGlutDisplay( void ) {
 				glVertex3f(i, -600.0f/1024.0f*0.5f*i*i + 0.5f, 0);
 			}
 		glEnd();
+
 		for(int i = numSlides - 1; i >= 0; i--) {
 //			printf("DBG: i:%i, current_slide_index:%i, segments:%i, final:%f\n",i,current_slide_index,segments,2.0f*((i - current_slide_index - (float)segments/2.0f)/(float)segments - 0.5f));
-			tX = (i + 1 - (current_slide_index + quickSlide))/((float)segments/2.0f);
-			if(tX < 1.0f/(segments/2.0f) && tX > -1.0f/(segments/2.0f)){
-				tY = (-600.0f/1024.0f*0.5f*(1.0f/(segments/2.0f))*1.0f/(segments/2.0f) + 0.5f) * nX2*nX2 - 0.3f;
+			tX = (i + 1 - (current_slide_index + quickSlide))/delta;
+			if(tX < 1.0f/delta && tX > -1.0f/delta){
+				tY = (-600.0f/1024.0f*0.5f*(1.0f/delta)*1.0f/delta + 0.5f) * nX2*nX2 - 0.3f;
 			} else{
 				tY = -600.0f/1024.0f*0.5f*nX2*nX2 + 0.5f;
 			}
@@ -407,11 +390,13 @@ void myGlutDisplay( void ) {
 //	printf("Ya,b: %f %f\n",Ya,pos[1]);
 
 	//Calculate nX and nY, or the displayed hand point
+	hX = 2.0*((-1.0f*(pos[0]/640.0f - 0.5f)*2.0f - Xa)/(Xb - Xa) - 0.5f);
+	hY = 2.0*((-1.0f*(pos[1]/480.0f - 0.5f)*2.0f - Ya)/(Yb - Ya) - 0.5f);
 	glColor4f(1,0.1f,0.6f,1);
 	glPointSize(20);
 	glBegin(GL_POINTS);
 //		printf("X,Y: %f %f\n",2.0*((-(pos[0]/640.0f - 0.5f)*2.0f - Xa)/(Xb - Xa) - 0.5f),2.0*((-(pos[1]/480.0f - 0.5f)*2.0f - Ya)/(Yb - Ya) - 0.5f));
-		glVertex3f(2.0*((-1.0f*(pos[0]/640.0f - 0.5f)*2.0f - Xa)/(Xb - Xa) - 0.5f),2.0*((-1.0f*(pos[1]/480.0f - 0.5f)*2.0f - Ya)/(Yb - Ya) - 0.5f),0.0f);
+		glVertex3f(hX,hY,0);
 	glEnd();
 
 	if(calibrationMode){
@@ -434,6 +419,81 @@ void myGlutDisplay( void ) {
 	}
 
 	//***** END Annotaations via hotspot ****//
+	//Hand point
+		glPushMatrix();
+//			glColor4f(0, 0, 1, 1);
+//			glPointSize(20);
+//			glBegin(GL_POINTS);
+//			//printf("DEBUG: %f %f\n", cx,cy);
+//	//		glVertex2f(cx,cy);
+//
+//			//<DEBUG>
+//				//Bottom left
+//				glVertex2f((center + size)*ratio, -1.0);
+//				//Top right
+//				glVertex2f((center - size)*ratio, -1.0 + size * 2);
+//
+//				//Center
+//				glColor4f(1, 0, 1, 1);
+//				glVertex2f(cx,cy);
+//			//</DEBUG>
+//			glEnd();
+
+//			glPointSize(10);
+//			glBegin(GL_POINTS);
+//				glColor4f(0, 1, 0, 1);
+//				//Com.X center offset from k_Orgin translate to offset from p_Orgin
+//				//translate
+//				pX = (center + size)*ratio + ((center - size)*ratio - (center + size)*ratio)*((pos[0]/640.0f - right)/(left - right));
+//				pY = -1.0f + (-1.0f + size * 2.0f - -1.0f)*((pos[1]/480.0f - bottom)/(top - bottom));
+//
+//				glVertex2f(pX,pY);
+//	//			glVertex2f(center + left*2.0f-1.0f, center + -2.0f*(top -0.5f));
+//	//			printf("X: %f, Y: %f\n", pX,pY);
+//			glEnd();
+//			printf("DEBUG: depthVal:%f pos[2]:%d\n",depthVal, (unsigned int)pos[2]);
+//			if (depthVal - pos[2] < 350) annotateMode = true;
+//			else annotateMode = false;
+			glLineWidth(6);
+			glBegin(GL_LINES);
+				glColor4f(0, 1, 0, 1);
+				if(annotateMode){
+	//				std::vector<XnPoint3D> draw = pHistory.back();
+	//				std::vector<XnPoint3D> draw = pHistory[lines_drawn];
+					XnPoint3D pt;
+					pt.X = hX;//pX;
+					pt.Y = hY;//pY;
+					pHistory.push_back(pt);
+	//				draw.push_back(pt);
+					pointIndex++;
+	//				printf("Size: %d :: %f, %f\n",  pHistory.size(), pt.X, pt.Y);
+				}
+
+				if(pHistory.size() > 2){
+					int a = 0;
+					for(int i = 0; i < pIndex.size(); i++){
+						int b = pIndex[i];
+						if((b-a) % 2 == 0) b -= 1;
+	//					printf("a: %d, b: %d\n", a, b);
+						for(int j = a; j < b; j++){
+							glVertex2f(pHistory[j].X, pHistory[j].Y);
+							glVertex2f(pHistory[j+1].X, pHistory[j+1].Y);
+						}
+						if((b-a) % 2 == 1)
+							a = b + 2;
+						else
+							a = b + 1;
+					}
+					if(pHistory.size() - a > 3 && annotateMode){
+						for(int i = a; i < pHistory.size()-1; i++){
+							glVertex2f(pHistory[i].X, pHistory[i].Y);
+							glVertex2f(pHistory[i+1].X, pHistory[i+1].Y);
+						}
+					}
+				}
+
+			glEnd();
+		glPopMatrix();
 
 
   glutSwapBuffers();
@@ -546,9 +606,9 @@ void pptDisplay( void ) {
 		glEnd();
 		for(int i = numSlides - 1; i >= 0; i--) {
 //			printf("DBG: i:%i, current_slide_index:%i, segments:%i, final:%f\n",i,current_slide_index,segments,2.0f*((i - current_slide_index - (float)segments/2.0f)/(float)segments - 0.5f));
-			tX = (i + 1 - (current_slide_index + quickSlide))/((float)segments/2.0f);
-			if(tX < 1.0f/(segments/2.0f) && tX > -1.0f/(segments/2.0f)){
-				tY = (-600.0f/1024.0f*0.5f*(1.0f/(segments/2.0f))*1.0f/(segments/2.0f) + 0.5f) * nX2*nX2 - 0.3f;
+			tX = (i + 1 - (current_slide_index + quickSlide))/delta;
+			if(tX < 1.0f/delta && tX > -1.0f/delta){
+				tY = (-600.0f/1024.0f*0.5f*(1.0f/delta)*1.0f/delta + 0.5f) * nX2*nX2 - 0.3f;
 			} else{
 				tY = -600.0f/1024.0f*0.5f*nX2*nX2 + 0.5f;
 			}
@@ -581,6 +641,43 @@ void pptDisplay( void ) {
 		cover_flow_background_alpha = 0.0f;
 	}
 
+	glPushMatrix();
+		glPointSize(10);
+		glBegin(GL_POINTS);
+			glColor4f(0, 1, 0, 1);
+			glVertex2f(pX,pY);
+		glEnd();
+
+		glLineWidth(6);
+		glBegin(GL_LINES);
+			glColor4f(0, 1, 0, 1);
+
+			if(pHistory.size() > 2){
+				int a = 0;
+				for(int i = 0; i < pIndex.size(); i++){
+					int b = pIndex[i];
+					if((b-a) % 2 == 0) b -= 1;
+//					printf("a: %d, b: %d\n", a, b);
+					for(int j = a; j < b; j++){
+						glVertex2f(pHistory[j].X, pHistory[j].Y);
+						glVertex2f(pHistory[j+1].X, pHistory[j+1].Y);
+					}
+					if((b-a) % 2 == 1)
+						a = b + 2;
+					else
+						a = b + 1;
+				}
+				if(pHistory.size() - a > 3 && annotateMode){
+					for(int i = a; i < pHistory.size()-1; i++){
+						glVertex2f(pHistory[i].X, pHistory[i].Y);
+						glVertex2f(pHistory[i+1].X, pHistory[i+1].Y);
+					}
+				}
+			}
+
+		glEnd();
+	glPopMatrix();
+
   glutSwapBuffers();
 }
 
@@ -592,10 +689,10 @@ void mouseBt(int button, int state, int x, int y){
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
 		switch(calibrationState){
 		case 0:
-			printf("printing!  %i  %i\n",x,y);
+//			printf("printing!  %i  %i\n",x,y);
 			screenPoints[0] = ((float)x/(float)(width - 150) - 0.5f)*2.0f;
 			screenPoints[1] = ((float)y/(float)(height - 30) - 0.5f)*-2.0f;
-			printf("printing!  %f  %f\n",screenPoints[0],screenPoints[1]);
+//			printf("printing!  %f  %f\n",screenPoints[0],screenPoints[1]);
 			calibrationState++;
 			break;
 		case 1:
@@ -703,7 +800,7 @@ void buttonCB(int button){
 
 void task1(){
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
-	glutInitWindowPosition( 1200, 50 );
+	glutInitWindowPosition( 1500, 50 );
 	glutInitWindowSize( width, height );
 	glViewport(0,0,width,height);
 	main_window = glutCreateWindow( "Kinect PowerPoint Prototype" );
@@ -719,13 +816,12 @@ void task1(){
 	glutDisplayFunc(pptDisplay);
 	glutFullScreen();
 
-//	display_window = glutCreateWindow( "Display" );
 	/***************** GLUI window components ***********************/
 	GLUI *PropertyBar = GLUI_Master.create_glui_subwindow(main_window, GLUI_SUBWINDOW_RIGHT);
 	GLUI *MediaBar = GLUI_Master.create_glui_subwindow( main_window , GLUI_SUBWINDOW_BOTTOM);
 
 	GLUI_Panel *temp = new GLUI_Panel(PropertyBar,"Layers", GLUI_PANEL_EMBOSSED);
-	new GLUI_Checkbox( temp, "Laser", &laser, 0, controlCB ); //laser
+	new GLUI_Checkbox( temp, "Annotations", &laser, 0, controlCB ); //laser
 	new GLUI_Checkbox( temp, "Presenter", &presenter, 1, controlCB ); //presenter
 	new GLUI_Checkbox( temp, "PowerPoint", &powerpoint,  2, controlCB ); //powerpoint
 
@@ -797,7 +893,7 @@ void task3(){
 			unsigned char * tdata = (unsigned char *)malloc(sizeof(unsigned char)*width*height*4);
 			boost::this_thread::sleep(boost::posix_time::milliseconds(30));
 			glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE, tdata);
-			printf("tdata: %i %i %i %i\n", (int)*(tdata + 300), (int)*(tdata + 301), (int)*(tdata + 302), (int)*(tdata + 303));
+//			printf("tdata: %i %i %i %i\n", (int)*(tdata + 300), (int)*(tdata + 301), (int)*(tdata + 302), (int)*(tdata + 303));
 			recordFrame(tdata);
 
 			//printf("Hi\n");
