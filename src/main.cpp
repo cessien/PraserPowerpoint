@@ -511,6 +511,35 @@ void pptDisplay( void ) {
 			glColor4f(0, 1, 0, 1);
 			glVertex2f(pX,pY);
 		glEnd();
+
+		glLineWidth(6);
+		glBegin(GL_LINES);
+			glColor4f(0, 1, 0, 1);
+
+			if(pHistory.size() > 2){
+				int a = 0;
+				for(int i = 0; i < pIndex.size(); i++){
+					int b = pIndex[i];
+					if((b-a) % 2 == 0) b -= 1;
+//					printf("a: %d, b: %d\n", a, b);
+					for(int j = a; j < b; j++){
+						glVertex2f(pHistory[j].X, pHistory[j].Y);
+						glVertex2f(pHistory[j+1].X, pHistory[j+1].Y);
+					}
+					if((b-a) % 2 == 1)
+						a = b + 2;
+					else
+						a = b + 1;
+				}
+				if(pHistory.size() - a > 3 && annotateMode){
+					for(int i = a; i < pHistory.size()-1; i++){
+						glVertex2f(pHistory[i].X, pHistory[i].Y);
+						glVertex2f(pHistory[i+1].X, pHistory[i+1].Y);
+					}
+				}
+			}
+
+		glEnd();
 	glPopMatrix();
 
   glutSwapBuffers();
