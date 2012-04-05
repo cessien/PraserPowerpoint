@@ -486,7 +486,7 @@ void XnVPointDrawer::Update(XnVMessage* pMessage)
 	}
 	// Draw hands
 //	printf("DRAWING\n");
-	Draw();
+//	Draw();
 	m_TouchingFOVEdge.clear();
 }
 

@@ -40,6 +40,7 @@ bool splitMode = false;
 bool annotateMode = false;
 volatile bool recording = false;
 int segments = 7;
+float delta = (float)segments/2.0f;
 
 float window1[] = {-1,1,-1,1};
 float window2[] = {-1,1,-1,1};
@@ -325,11 +326,12 @@ void myGlutDisplay( void ) {
 				glVertex3f(i, -600.0f/1024.0f*0.5f*i*i + 0.5f, 0);
 			}
 		glEnd();
+
 		for(int i = numSlides - 1; i >= 0; i--) {
 //			printf("DBG: i:%i, current_slide_index:%i, segments:%i, final:%f\n",i,current_slide_index,segments,2.0f*((i - current_slide_index - (float)segments/2.0f)/(float)segments - 0.5f));
-			tX = (i + 1 - (current_slide_index + quickSlide))/((float)segments/2.0f);
-			if(tX < 1.0f/(segments/2.0f) && tX > -1.0f/(segments/2.0f)){
-				tY = (-600.0f/1024.0f*0.5f*(1.0f/(segments/2.0f))*1.0f/(segments/2.0f) + 0.5f) * nX2*nX2 - 0.3f;
+			tX = (i + 1 - (current_slide_index + quickSlide))/delta;
+			if(tX < 1.0f/delta && tX > -1.0f/delta){
+				tY = (-600.0f/1024.0f*0.5f*(1.0f/delta)*1.0f/delta + 0.5f) * nX2*nX2 - 0.3f;
 			} else{
 				tY = -600.0f/1024.0f*0.5f*nX2*nX2 + 0.5f;
 			}
@@ -470,9 +472,9 @@ void pptDisplay( void ) {
 		glEnd();
 		for(int i = numSlides - 1; i >= 0; i--) {
 //			printf("DBG: i:%i, current_slide_index:%i, segments:%i, final:%f\n",i,current_slide_index,segments,2.0f*((i - current_slide_index - (float)segments/2.0f)/(float)segments - 0.5f));
-			tX = (i + 1 - (current_slide_index + quickSlide))/((float)segments/2.0f);
-			if(tX < 1.0f/(segments/2.0f) && tX > -1.0f/(segments/2.0f)){
-				tY = (-600.0f/1024.0f*0.5f*(1.0f/(segments/2.0f))*1.0f/(segments/2.0f) + 0.5f) * nX2*nX2 - 0.3f;
+			tX = (i + 1 - (current_slide_index + quickSlide))/delta;
+			if(tX < 1.0f/delta && tX > -1.0f/delta){
+				tY = (-600.0f/1024.0f*0.5f*(1.0f/delta)*1.0f/delta + 0.5f) * nX2*nX2 - 0.3f;
 			} else{
 				tY = -600.0f/1024.0f*0.5f*nX2*nX2 + 0.5f;
 			}
