@@ -13,6 +13,7 @@ extern xn::UserGenerator g_UserGenerator;
 extern xn::DepthGenerator g_DepthGenerator;
 extern int LEFT, RIGHT, TOP, BOTTOM;
 extern float CENTER;
+extern bool calibrationMode;
 
 #define MAX_DEPTH 10000
 float g_pDepthHist[MAX_DEPTH];
@@ -155,14 +156,17 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, Xn
 //				XnUInt32 nColorID = label % nColors;
 				if (label != 1)
 				{
-//					nColorID = nColors;
-					pDestImage[0] = 0;
-					pDestImage[1] = 0;
-					pDestImage[2] = 0;
-//					pDestImage[0] = pixel->nRed;
-//					pDestImage[1] = pixel->nGreen;
-//					pDestImage[2] = pixel->nBlue;
-					pDestImage[3] = 1;
+					if(calibrationMode){
+						pDestImage[0] = pixel->nRed;
+						pDestImage[1] = pixel->nGreen;
+						pDestImage[2] = pixel->nBlue;
+						pDestImage[3] = 255;
+					} else {
+						pDestImage[0] = 0;
+						pDestImage[1] = 0;
+						pDestImage[2] = 0;
+						pDestImage[3] = 0;
+					}
 				} else {
 					pDestImage[0] = pixel->nRed;
 					pDestImage[1] = pixel->nGreen;

@@ -20,6 +20,8 @@ typedef struct {
 
 void updateSecondary();
 
+void glPrintString(void *font, char *str);
+
 float * getBoundary();
 int start();
 void StopCapture();

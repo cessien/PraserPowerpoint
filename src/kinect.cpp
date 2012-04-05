@@ -502,6 +502,7 @@ void XN_CALLBACK_TYPE CircleCB(XnFloat fTimes, XnBool bConfident, const XnVCircl
 
 //	sprintf(strLabel, "%d", quickSlide);//fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
 	status_circle = true;
+//	glRasterPos2i(20, 20);
 //	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
 }
 

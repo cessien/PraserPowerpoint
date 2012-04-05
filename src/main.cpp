@@ -32,6 +32,13 @@ bool presenter_layer = true;
 bool powerpoint_layer = true;
 bool coverflowMode = false;
 bool splitMode = false;
+bool calibrationMode = false;
+int calibrationState = 0;
+float screenPoints[8] = {-1.0f,-1.0f,
+						  1.0f,-1.0f,
+						  1.0f,1.0f,
+						  -1.0f,1.0f
+						};
 volatile bool recording = false;
 int segments = 7;
 
@@ -101,6 +108,7 @@ float icon_size, tX, tY, nX2, nY2;
 float n1,n2,n3,n4;
 float m1,m2,m3,m4;
 float pX,pY;
+float Xa,Xb,Ya,Yb,m,b;
 void myGlutDisplay( void ) {
   glClearColor( .0f, .0f, .0f, 1.0f );
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -225,7 +233,7 @@ void myGlutDisplay( void ) {
 		recordFrame(tdata);
 	}
 
-
+	//Hand point
 	glPushMatrix();
 		glColor4f(0, 0, 1, 1);
 		glPointSize(20);
@@ -322,6 +330,112 @@ void myGlutDisplay( void ) {
 		cover_flow_background_alpha = 0.0f;
 	}
 
+	if(calibrationMode){
+		glColor4f(1,1,1,1);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, 1);
+		glEnable (GL_BLEND);
+		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glBegin(GL_POLYGON);
+			  glTexCoord2f(1.0,0.0); glVertex3f(-1, 1, 0.0);
+			  glTexCoord2f(0.0,0.0); glVertex3f(1, 1, 0.0);
+			  glTexCoord2f(0.0,1.0); glVertex3f(1, -1, 0.0);
+			  glTexCoord2f(1.0,1.0); glVertex3f(-1, -1, 0.0);
+		glEnd();
+		glDisable (GL_BLEND);
+		glDisable(GL_TEXTURE_2D);
+
+		glColor4f(0,1,0,1);
+		glBegin(GL_POINTS);
+			glVertex3f(screenPoints[0], screenPoints[1], 0.0);
+			glVertex3f(screenPoints[2], screenPoints[3], 0.0);
+			glVertex3f(screenPoints[4], screenPoints[5], 0.0);
+			glVertex3f(screenPoints[6], screenPoints[7], 0.0);
+		glEnd();
+
+		glRasterPos2i(20, 20);
+		char strLabel[100];
+
+		//	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
+		switch(calibrationState){
+		case 0:
+			sprintf(strLabel, "Please click Bottom Left of projector screen");
+			break;
+		case 1:
+			sprintf(strLabel, "Please click Top Right of projector screen");
+			break;
+		case 2:
+			sprintf(strLabel, "Please click Bottom Right of projector screen");
+			break;
+		case 3:
+			sprintf(strLabel, "Please click Top Left of projector screen");
+			break;
+		case 4:
+			sprintf(strLabel, "Calibration Completed");
+			break;
+		}
+
+		glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
+	}
+
+	//****** Annotations via hotspot ****//
+	//Deep Sky Blue
+	glColor4i(0,191,255,255);
+	//Calculate left and right and top and bottom boundaries of current point
+	//Left
+	m = ((screenPoints[7] - screenPoints[1])/(screenPoints[6] - screenPoints[0]));
+	b = (screenPoints[7] - m*screenPoints[6]);
+	Xa = (1.0f - pos[1]/480.0f - b)/m;
+
+	//Right
+	m = ((screenPoints[5] - screenPoints[3])/(screenPoints[4] - screenPoints[2]));
+	b = (screenPoints[5] - m*screenPoints[4]);
+	Xb = (1.0f - pos[1]/480.0f - b)/m;
+
+	//Top
+	m = ((screenPoints[5] - screenPoints[7])/(screenPoints[4] - screenPoints[6]));
+	b = (screenPoints[5] - m*screenPoints[4]);
+	Yb = m*(1.0f - pos[0]/640.0f) + b;
+
+	//Bottom
+	m = ((screenPoints[3] - screenPoints[1])/(screenPoints[2] - screenPoints[0]));
+	b = (screenPoints[3] - m*screenPoints[2]);
+	Ya = m*(1.0f - pos[0]/640.0f) + b;
+
+//	printf("Ya,b: %f %f\n",Ya,pos[1]);
+
+	//Calculate nX and nY, or the displayed hand point
+	glColor4f(1,0.1f,0.6f,1);
+	glPointSize(20);
+	glBegin(GL_POINTS);
+//		printf("X,Y: %f %f\n",2.0*((-(pos[0]/640.0f - 0.5f)*2.0f - Xa)/(Xb - Xa) - 0.5f),2.0*((-(pos[1]/480.0f - 0.5f)*2.0f - Ya)/(Yb - Ya) - 0.5f));
+		glVertex3f(2.0*((-1.0f*(pos[0]/640.0f - 0.5f)*2.0f - Xa)/(Xb - Xa) - 0.5f),2.0*((-1.0f*(pos[1]/480.0f - 0.5f)*2.0f - Ya)/(Yb - Ya) - 0.5f),0.0f);
+	glEnd();
+
+	if(calibrationMode){
+		glColor4f(1,1,1,1);
+		glBegin(GL_LINES);
+				glVertex3f(Xa,-(pos[1]/480.0f - 0.5f)*2.0f,0.0f);
+				glVertex3f(Xb,-(pos[1]/480.0f - 0.5f)*2.0f,0.0f);
+				glVertex3f(-(pos[0]/640.0f - 0.5f)*2.0f,Yb,0.0f);
+				glVertex3f(-(pos[0]/640.0f - 0.5f)*2.0f,Ya,0.0f);
+		glEnd();
+		glColor4i(0,191,255,255);
+		glPointSize(10);
+		glBegin(GL_POINTS);
+			glVertex2f(-(pos[0]/640.0f - 0.5f)*2.0f,-(pos[1]/480.0f - 0.5f)*2.0f);
+			glVertex3f(Xa,-(pos[1]/480.0f - 0.5f)*2.0f,0.0f);
+			glVertex3f(Xb,-(pos[1]/480.0f - 0.5f)*2.0f,0.0f);
+			glVertex3f(-(pos[0]/640.0f - 0.5f)*2.0f,Yb,0.0f);
+			glVertex3f(-(pos[0]/640.0f - 0.5f)*2.0f,Ya,0.0f);
+		glEnd();
+	}
+
+	//***** END Annotaations via hotspot ****//
+
+
   glutSwapBuffers();
 }
 
@@ -402,6 +516,14 @@ void pptDisplay( void ) {
 
   }
 
+	//Calculate nX and nY, or the displayed hand point
+	glColor4f(0,1,0,1);
+	glPointSize(20);
+	glBegin(GL_POINTS);
+//		printf("X,Y: %f %f\n",2.0*((-(pos[0]/640.0f - 0.5f)*2.0f - Xa)/(Xb - Xa) - 0.5f),2.0*((-(pos[1]/480.0f - 0.5f)*2.0f - Ya)/(Yb - Ya) - 0.5f));
+		glVertex3f(2.0*((-1.0f*(pos[0]/640.0f - 0.5f)*2.0f - Xa)/(Xb - Xa) - 0.5f),2.0*((-1.0f*(pos[1]/480.0f - 0.5f)*2.0f - Ya)/(Yb - Ya) - 0.5f),0.0f);
+	glEnd();
+
 	if(coverflowMode){
 		glEnable (GL_BLEND);
 		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -459,20 +581,43 @@ void pptDisplay( void ) {
 		cover_flow_background_alpha = 0.0f;
 	}
 
-	glPushMatrix();
-		glPointSize(10);
-		glBegin(GL_POINTS);
-			glColor4f(0, 1, 0, 1);
-			glVertex2f(pX,pY);
-		glEnd();
-	glPopMatrix();
-
   glutSwapBuffers();
 }
 
 int laser = 1;
 int presenter = 1;
 int powerpoint = 1;
+
+void mouseBt(int button, int state, int x, int y){
+	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+		switch(calibrationState){
+		case 0:
+			printf("printing!  %i  %i\n",x,y);
+			screenPoints[0] = ((float)x/(float)(width - 150) - 0.5f)*2.0f;
+			screenPoints[1] = ((float)y/(float)(height - 30) - 0.5f)*-2.0f;
+			printf("printing!  %f  %f\n",screenPoints[0],screenPoints[1]);
+			calibrationState++;
+			break;
+		case 1:
+			screenPoints[2] = ((float)x/(float)(width - 150) - 0.5f)*2.0f;
+			screenPoints[3] = ((float)y/(float)(height - 30) - 0.5f)*-2.0f;
+			calibrationState++;
+			break;
+		case 2:
+			screenPoints[4] = ((float)x/(float)(width - 150) - 0.5f)*2.0f;
+			screenPoints[5] = ((float)y/(float)(height - 30) - 0.5f)*-2.0f;
+			calibrationState++;
+			break;
+		case 3:
+			screenPoints[6] = ((float)x/(float)(width - 150) - 0.5f)*2.0f;
+			screenPoints[7] = ((float)y/(float)(height - 30) - 0.5f)*-2.0f;
+			calibrationState++;
+			break;
+		case 4:
+			break;
+		}
+	}
+}
 
 void controlCB(int control){
 	switch(control){
@@ -500,6 +645,15 @@ void buttonCB(int button){
 	switch(button){
 	case 3:
 		motorAngle(motor);
+		break;
+	case 4:
+		if(calibrationMode) {
+			calibrationState = -1;
+			calibrationMode = false;
+		} else {
+			calibrationState = 0;
+			calibrationMode = true;
+		}
 		break;
 	case 0:
 		if(coverflowMode) {
@@ -550,10 +704,12 @@ void buttonCB(int button){
 void task1(){
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
 	glutInitWindowPosition( 1200, 50 );
-	glutInitWindowSize( 1024, 600 );
+	glutInitWindowSize( width, height );
 	glViewport(0,0,width,height);
 	main_window = glutCreateWindow( "Kinect PowerPoint Prototype" );
 	glutDisplayFunc(myGlutDisplay);
+//	glutMouseFunc(mouseBt);
+	GLUI_Master.set_glutMouseFunc(mouseBt);
 	GLUI_Master.set_glutReshapeFunc( Reshape );
 
 	glutInitWindowPosition( 50, 50 );
@@ -579,6 +735,8 @@ void task1(){
 	new GLUI_Button(temp, "Combined", 0, buttonCB);
 	new GLUI_Separator(temp);
 	new GLUI_Button(temp, "Split", 1, buttonCB);
+	new GLUI_Separator(temp);
+	new GLUI_Button(temp, "Calibration", 4, buttonCB);
 
 	new GLUI_Separator(PropertyBar);
 	GLUI_Spinner *t = new GLUI_Spinner(PropertyBar, "Motor", GLUI_SPINNER_INT, &motor, 3, buttonCB);
@@ -594,6 +752,7 @@ void task1(){
 
 	MediaBar->set_main_gfx_window( main_window );
 	PropertyBar->set_main_gfx_window( main_window );
+
 
 	/* We register the idle callback with GLUI, *not* with GLUT */
 	GLUI_Master.set_glutIdleFunc( myGlutIdle );
