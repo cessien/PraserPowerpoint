@@ -15,6 +15,7 @@
 #include "XnVNite.h"
 #include "powerpoint.h"
 #include <algorithm>
+#include <vector>
 
 xn::Context g_Context;
 xn::ScriptNode g_ScriptNode;
@@ -34,18 +35,20 @@ XnVSwipeDetector *swipeDetector;
 XnVCircleDetector *circleDetector;
 XnVPushDetector *pushDetector;
 
+extern bool annotateMode;
+extern std::vector<int> pIndex;
+extern std::vector<XnPoint3D> pHistory;
+extern int pointIndex;
+
 extern int current_slide_index;
 extern unsigned char *current_slide;
-extern int num_slides;
 int LEFT, RIGHT, TOP, BOTTOM;
 float CENTER;
-
 extern bool coverflowMode;
 
 int quickSlide;
 extern int numSlides;
 extern tile *icons;
-bool status_circle = false;
 
 //Returns an array of the boundaries in (left, right, top, bottom).
 float * getBoundary(){
@@ -447,13 +450,20 @@ void XN_CALLBACK_TYPE FocusProgress(const XnChar* strFocus, const XnPoint3D& ptP
 
 void XN_CALLBACK_TYPE Swipe_SwipeUp(XnFloat fVelocity, XnFloat fAngle, void* cxt)
 {
-	printf("SWIPED Up!\n");
-
+	if(!coverflowMode && !annotateMode){
+		printf("SWIPED Up! Vel: %f\n", fVelocity);
+		if(fVelocity > 0.37f){
+			pHistory.clear();
+			pIndex.clear();
+			pointIndex = -1;
+			printf("SIZE AFTER CLEAR: %d, Index: %d\n",pHistory.size(), pIndex.size());
+		}
+	}
 }
 
 void XN_CALLBACK_TYPE Swipe_SwipeLeft(XnFloat fVelocity, XnFloat fAngle, void* cxt)
 {
-	if(current_slide_index > 1){
+	if(current_slide_index > 1 && !coverflowMode && !annotateMode){
 		printf("SWIPED Left\n");
 		current_slide_index--;
 		current_slide = getSlide(current_slide_index);
@@ -462,7 +472,7 @@ void XN_CALLBACK_TYPE Swipe_SwipeLeft(XnFloat fVelocity, XnFloat fAngle, void* c
 
 void XN_CALLBACK_TYPE Swipe_SwipeRight(XnFloat fVelocity, XnFloat fAngle, void* cxt)
 {
-	if(current_slide_index < numSlides){
+	if(current_slide_index < numSlides && !coverflowMode && !annotateMode){
 		printf("SWIPED Right\n");
 		current_slide_index++;
 		current_slide = getSlide(current_slide_index);
@@ -471,38 +481,41 @@ void XN_CALLBACK_TYPE Swipe_SwipeRight(XnFloat fVelocity, XnFloat fAngle, void* 
 
 void XN_CALLBACK_TYPE Swipe_SwipeDown(XnFloat fVelocity, XnFloat fAngle, void* cxt)
 {
-	printf("SWIPED Down!\n");
+	if(!coverflowMode && !annotateMode){
+		printf("SWIPED Down!\n");
+	}
 }
 
 void XN_CALLBACK_TYPE CircleCB(XnFloat fTimes, XnBool bConfident, const XnVCircle* pCircle, void* pUserCxt)
 {
-//	glRasterPos2i(20, 20);
-//	XnChar strLabel[20];
-	if(!coverflowMode){
-		//icons = (tile *)malloc(sizeof(tile)*numSlides);
+	if(!annotateMode){
+//			glRasterPos2i(20, 20);
+//			XnChar strLabel[20];
+		if(!coverflowMode){
+//			icons = (tile *)malloc(sizeof(tile)*numSlides);
 
-//		for(int i = 1; i <= numSlides; i++){
-//			tile temp;
-//			temp.texture = getSlide(i);
-//			temp.currentpos = 1.0f;
-//			temp.currentheight = 1.0f;
-//			icons[i-1] = temp;
-//		}
-		coverflowMode = true;
-	}
+//					for(int i = 1; i <= numSlides; i++){
+//						tile temp;
+//						temp.texture = getSlide(i);
+//						temp.currentpos = 1.0f;
+//						temp.currentheight = 1.0f;
+//						icons[i-1] = temp;
+//					}
+			coverflowMode = true;
+		}
 
-//	if(fTimes <= (numSlides - current_slide_index) && fTimes >= 1){
+//			if(fTimes <= (numSlides - current_slide_index) && fTimes >= 1){
 		quickSlide = (fTimes * 0.4 * 10 / 1) + 1;
-//		//	printf("ftimes:: %f\n", fTimes);
-//	}
+//					printf("ftimes:: %f\n", fTimes);
+//			}
 
 
-	quickSlide = std::max(quickSlide, -1*current_slide_index);
-	quickSlide = std::min(quickSlide, numSlides - current_slide_index);
+		quickSlide = std::max(quickSlide, -1*current_slide_index);
+		quickSlide = std::min(quickSlide, numSlides - current_slide_index);
 
-//	sprintf(strLabel, "%d", quickSlide);//fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
-	status_circle = true;
-//	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
+//			sprintf(strLabel, "%d", quickSlide);//fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
+//			glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
+	}
 }
 
 void XN_CALLBACK_TYPE NoCircleCB(XnFloat fLastValue, XnVCircleDetector::XnVNoCircleReason reason, void * pUserCxt)
@@ -517,7 +530,6 @@ void XN_CALLBACK_TYPE NoCircleCB(XnFloat fLastValue, XnVCircleDetector::XnVNoCir
 
 	current_slide_index += quickSlide;
 	current_slide = getSlide(current_slide_index);
-	status_circle = false;
 }
 
 void XN_CALLBACK_TYPE Circle_PrimaryCreate(const XnVHandPointContext *cxt, const XnPoint3D& ptFocus, void * pUserCxt)
@@ -532,18 +544,26 @@ void XN_CALLBACK_TYPE Circle_PrimaryDestroy(XnUInt32 nID, void * pUserCxt)
 
 void XN_CALLBACK_TYPE onPush(XnFloat fVelocity, XnFloat fAngle, void* UserCxt)
 {
-	coverflowMode = false;
 	printf("\nAngle: %f\n",fAngle);
 //	printf("PUSH\n");
-	if (status_circle&& fVelocity > 0.5f){
+	if (coverflowMode && fVelocity > 0.5f){
+		coverflowMode = false;
 		printf("Velocity: %f\n" , fVelocity);
 		circleDetector->Reset();
+	} else if(!coverflowMode && fVelocity > 0.5f){
+		pushDetector->SetStableDuration(2000);
+		annotateMode = true;
 	}
+	pushDetector->SetStableDuration(360);
 }
 
 void XN_CALLBACK_TYPE onStable(XnFloat fVelocity, void* UserCxt)
 {
-//	printf("STABLE???\n");
+	printf("STABLE??? pointIndex: %d\n", pointIndex);
+	if(annotateMode){
+		annotateMode = false;
+		pIndex.push_back(pointIndex);
+	}
 }
 
 extern unsigned char* pDepthTexBuf;

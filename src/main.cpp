@@ -16,6 +16,7 @@ Praser Application
 //#include <boost/thread/mutex.hpp>
 //#include <boost/bind.hpp>
 #include <queue>
+#include <vector>
 
 void task3();
 int main_window;
@@ -24,6 +25,10 @@ int current_slide_index;
 extern int quickSlide;
 unsigned char *current_slide;
 unsigned char * tdata;
+std::vector<XnPoint3D> pHistory;
+std::vector<int> pIndex;
+int pointIndex = -1;
+
 
 int width = 1024;
 int height = 600;
@@ -32,6 +37,7 @@ bool presenter_layer = true;
 bool powerpoint_layer = true;
 bool coverflowMode = false;
 bool splitMode = false;
+bool annotateMode = false;
 volatile bool recording = false;
 int segments = 7;
 
@@ -60,7 +66,7 @@ int motor;
 //boost::thread thread3;
 /***************************************** myGlutIdle() ***********/
 void updateSecondary(){
-	glutSetWindow(display_window);
+//	glutSetWindow(display_window);
 	glutPostRedisplay();
 	glutSetWindow(main_window);
 }
@@ -100,7 +106,7 @@ float * boundaries;
 float icon_size, tX, tY, nX2, nY2;
 float n1,n2,n3,n4;
 float m1,m2,m3,m4;
-float pX,pY;
+float pX,pY,pX2,pY2;
 void myGlutDisplay( void ) {
   glClearColor( .0f, .0f, .0f, 1.0f );
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -256,6 +262,46 @@ void myGlutDisplay( void ) {
 			glVertex2f(pX,pY);
 //			glVertex2f(center + left*2.0f-1.0f, center + -2.0f*(top -0.5f));
 //			printf("X: %f, Y: %f\n", pX,pY);
+		glEnd();
+
+		glLineWidth(6);
+		glBegin(GL_LINES);
+			glColor4f(0, 1, 0, 1);
+			if(annotateMode){
+//				std::vector<XnPoint3D> draw = pHistory.back();
+//				std::vector<XnPoint3D> draw = pHistory[lines_drawn];
+				XnPoint3D pt;
+				pt.X = pX;
+				pt.Y = pY;
+				pHistory.push_back(pt);
+//				draw.push_back(pt);
+				pointIndex++;
+//				printf("Size: %d :: %f, %f\n",  pHistory.size(), pt.X, pt.Y);
+			}
+
+			if(pHistory.size() > 2){
+				int a = 0;
+				for(int i = 0; i < pIndex.size(); i++){
+					int b = pIndex[i];
+					if((b-a) % 2 == 0) b -= 1;
+//					printf("a: %d, b: %d\n", a, b);
+					for(int j = a; j < b; j++){
+						glVertex2f(pHistory[j].X, pHistory[j].Y);
+						glVertex2f(pHistory[j+1].X, pHistory[j+1].Y);
+					}
+					if((b-a) % 2 == 1)
+						a = b + 2;
+					else
+						a = b + 1;
+				}
+				if(pHistory.size() - a > 3 && annotateMode){
+					for(int i = a; i < pHistory.size()-1; i++){
+						glVertex2f(pHistory[i].X, pHistory[i].Y);
+						glVertex2f(pHistory[i+1].X, pHistory[i+1].Y);
+					}
+				}
+			}
+
 		glEnd();
 	glPopMatrix();
 
@@ -559,9 +605,9 @@ void task1(){
 	glutInitWindowPosition( 50, 50 );
 	glutInitWindowSize( 1024, 768 );
 
-	display_window = glutCreateWindow( "Display" );
-	glutDisplayFunc(pptDisplay);
-	glutFullScreen();
+//	display_window = glutCreateWindow( "Display" );
+//	glutDisplayFunc(pptDisplay);
+//	glutFullScreen();
 
 //	display_window = glutCreateWindow( "Display" );
 	/***************** GLUI window components ***********************/

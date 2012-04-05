@@ -320,6 +320,10 @@ void XnVPointDrawer::OnPointUpdate(const XnVHandPointContext* cxt)
 	m_DepthGenerator.ConvertRealWorldToProjective(1, &ptProjective, &ptProjective);
 	//if (true)printf(" -> (%f,%f,%f)\n", ptProjective.X, ptProjective.Y, ptProjective.Z);
 
+	pos[0] = ptProjective.X;
+	pos[1] = ptProjective.Y;
+	pos[2] = 0;
+
 	// Add new position to the history buffer
 	m_History[cxt->nID].push_front(ptProjective);
 	// Keep size of history buffer
@@ -327,9 +331,6 @@ void XnVPointDrawer::OnPointUpdate(const XnVHandPointContext* cxt)
 		m_History[cxt->nID].pop_back();
 	bShouldPrint = false;
 
-	pos[0] = ptProjective.X;
-	pos[1] = ptProjective.Y;
-	pos[2] = 0;//ptProjective.Z;
 }
 
 // Handle destruction of an existing hand
@@ -439,9 +440,9 @@ void XnVPointDrawer::Draw() const
 		if (Id == GetPrimaryID())
 			nColor = 6;
 		// Draw buffer:
-//		glColor4f(1,
-//				0,
-//				0,
+//		glColor4f(0,
+//				1,
+//				1,
 //				1.0f);
 		glPointSize(2);
 		glVertexPointer(3, GL_FLOAT, 0, m_pfPositionBuffer);
@@ -484,7 +485,7 @@ void XnVPointDrawer::Update(XnVMessage* pMessage)
 		DrawFrameID(depthMD.FrameID());
 	}
 	// Draw hands
-	//printf("DRAWING\n");
+//	printf("DRAWING\n");
 	Draw();
 	m_TouchingFOVEdge.clear();
 }
