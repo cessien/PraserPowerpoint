@@ -100,6 +100,7 @@ float * boundaries;
 float icon_size, tX, tY, nX2, nY2;
 float n1,n2,n3,n4;
 float m1,m2,m3,m4;
+float pX,pY;
 void myGlutDisplay( void ) {
   glClearColor( .0f, .0f, .0f, 1.0f );
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -151,20 +152,28 @@ void myGlutDisplay( void ) {
 			  glTexCoord2f(1.0,0.0); glVertex3f(n2, n3, 0.0);
 			  glTexCoord2f(0.0,0.0); glVertex3f(n1, n3, 0.0);
 	  glEnd();
+	  glDisable(GL_TEXTURE_2D);
+	  glPopMatrix();
 
 	  if(splitMode){
-		 // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, icons[current_slide_index + 1].texture);
-
+		  glPushMatrix();
+		  glEnable(GL_TEXTURE_2D);
+		  glBindTexture(GL_TEXTURE_2D, 10);
+		  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+		  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		  if(current_slide_index < numSlides - 1)
+			  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, icons[current_slide_index].texture);
+		  else
+			  glColor4f(0,0,0,1);
 		  glBegin(GL_POLYGON);
 				  glTexCoord2f(0.0,1.0); glVertex3f(m1, m4, 0.0);
 				  glTexCoord2f(1.0,1.0); glVertex3f(m2, m4, 0.0);
 				  glTexCoord2f(1.0,0.0); glVertex3f(m2, m3, 0.0);
 				  glTexCoord2f(0.0,0.0); glVertex3f(m1, m3, 0.0);
 		  glEnd();
+		  glDisable(GL_TEXTURE_2D);
+		  glPopMatrix();
 	  }
-
-	  glDisable(GL_TEXTURE_2D);
-	  glPopMatrix();
   }
 
   if(presenter_layer){
@@ -217,17 +226,6 @@ void myGlutDisplay( void ) {
 	}
 
 
-//	glPushMatrix();
-//	glBegin(GL_LINES);
-//	  	glColor4f(1,0,0,1);
-//	  	glVertex3f(1,1,0);
-//	  	glVertex3f(-1,-1,0);
-//	  	//glVertex3f(,0,0);
-//	  	//glVertex3f(1,1,0);
-//	glEnd();
-//	glPopMatrix();
-
-
 	glPushMatrix();
 		glColor4f(0, 0, 1, 1);
 		glPointSize(20);
@@ -252,7 +250,6 @@ void myGlutDisplay( void ) {
 			glColor4f(0, 1, 0, 1);
 			//Com.X center offset from k_Orgin translate to offset from p_Orgin
 			//translate
-			float pX,pY;
 			pX = (center + size)*ratio + ((center - size)*ratio - (center + size)*ratio)*((pos[0]/640.0f - right)/(left - right));
 			pY = -1.0f + (-1.0f + size * 2.0f - -1.0f)*((pos[1]/480.0f - bottom)/(top - bottom));
 
@@ -379,37 +376,31 @@ void pptDisplay( void ) {
 			  glTexCoord2f(1.0,0.0); glVertex3f(n2, n3, 0.0);
 			  glTexCoord2f(0.0,0.0); glVertex3f(n1, n3, 0.0);
 	  glEnd();
+	  glDisable(GL_TEXTURE_2D);
+	  glPopMatrix();
 
 	  if(splitMode){
-		 // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, icons[current_slide_index + 1].texture);
-
+		  glPushMatrix();
+		  glEnable(GL_TEXTURE_2D);
+		  glBindTexture(GL_TEXTURE_2D, 11);
+		  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+		  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		  if(current_slide_index < numSlides+1)
+			  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 720, 0, GL_RGBA, GL_UNSIGNED_BYTE, icons[current_slide_index].texture);
+		  else
+			  glColor4f(0,0,0,1);
 		  glBegin(GL_POLYGON);
 				  glTexCoord2f(0.0,1.0); glVertex3f(m1, m4, 0.0);
 				  glTexCoord2f(1.0,1.0); glVertex3f(m2, m4, 0.0);
 				  glTexCoord2f(1.0,0.0); glVertex3f(m2, m3, 0.0);
 				  glTexCoord2f(0.0,0.0); glVertex3f(m1, m3, 0.0);
 		  glEnd();
+		  glDisable(GL_TEXTURE_2D);
+		  glPopMatrix();
 	  }
 
-	  glDisable(GL_TEXTURE_2D);
-	  glPopMatrix();
+
   }
-
-	glPushMatrix();
-		glPointSize(10);
-		glBegin(GL_POINTS);
-			glColor4f(0, 1, 0, 1);
-			//Com.X center offset from k_Orgin translate to offset from p_Orgin
-			//translate
-			float pX,pY;
-			pX = (center + size)*ratio + ((center - size)*ratio - (center + size)*ratio)*((pos[0]/640.0f - right)/(left - right));
-			pY = -1.0f + (-1.0f + size * 2.0f - -1.0f)*((pos[1]/480.0f - bottom)/(top - bottom));
-
-			glVertex2f(pX,pY);
-//			glVertex2f(center + left*2.0f-1.0f, center + -2.0f*(top -0.5f));
-//			printf("X: %f, Y: %f\n", pX,pY);
-		glEnd();
-	glPopMatrix();
 
 	if(coverflowMode){
 		glEnable (GL_BLEND);
@@ -467,6 +458,14 @@ void pptDisplay( void ) {
 	} else {
 		cover_flow_background_alpha = 0.0f;
 	}
+
+	glPushMatrix();
+		glPointSize(10);
+		glBegin(GL_POINTS);
+			glColor4f(0, 1, 0, 1);
+			glVertex2f(pX,pY);
+		glEnd();
+	glPopMatrix();
 
   glutSwapBuffers();
 }
@@ -561,7 +560,7 @@ void task1(){
 	glutInitWindowSize( 1024, 768 );
 
 	display_window = glutCreateWindow( "Display" );
-	glutDisplayFunc(myGlutDisplay);
+	glutDisplayFunc(pptDisplay);
 	glutFullScreen();
 
 //	display_window = glutCreateWindow( "Display" );
@@ -590,7 +589,8 @@ void task1(){
 	new GLUI_Column(MediaBar);
 	new GLUI_Button(MediaBar, "Stop",101,buttonCB);
 	new GLUI_Column(MediaBar);
-	new GLUI_Spinner(MediaBar, "Slide", GLUI_SPINNER_INT, &current_slide_index, 102, buttonCB);
+	t = new GLUI_Spinner(MediaBar, "Slide", GLUI_SPINNER_INT, &current_slide_index, 102, buttonCB);
+	t->set_int_limits(1,numSlides - 1,GLUI_LIMIT_CLAMP);
 
 	MediaBar->set_main_gfx_window( main_window );
 	PropertyBar->set_main_gfx_window( main_window );
