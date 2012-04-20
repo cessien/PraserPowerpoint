@@ -34,26 +34,22 @@ XnVBroadcaster* broadcaster;
 XnVSwipeDetector *swipeDetector;
 XnVCircleDetector *circleDetector;
 XnVPushDetector *pushDetector;
-XnVWaveDetector *waveDetector;
 
 extern bool annotateMode;
 extern std::vector<int> pIndex;
-extern std::vector<int> cIndex;
 extern std::vector<XnPoint3D> pHistory;
 extern int pointIndex;
-
 
 extern int current_slide_index;
 extern unsigned char *current_slide;
 int LEFT, RIGHT, TOP, BOTTOM;
 float CENTER;
 extern bool coverflowMode;
-extern bool splitMode;
 
 int quickSlide;
 extern int numSlides;
 extern tile *icons;
-int focus = 1;
+
 //Returns an array of the boundaries in (left, right, top, bottom).
 float * getBoundary(){
 	float * temp = (float *)malloc(sizeof(float) * 5);
@@ -164,7 +160,6 @@ void StartCapture()
 XnBool AssignPlayer(XnUserID user)
 {
 	if (g_nPlayer != 0)
-
 		return FALSE;
 
 	printf("Player assigned?\n");
@@ -183,44 +178,31 @@ XnBool AssignPlayer(XnUserID user)
 }
 void XN_CALLBACK_TYPE NewUser(xn::UserGenerator& generator, XnUserID user, void* pCookie)
 {
-//	focus = user;
-	g_UserGenerator.GetPoseDetectionCap().StartPoseDetection("Psi", user);
-//	if (g_nPlayer > 1) return;
-//	if (!g_bCalibrated) // check on player0 is enough
-//	{
-//		printf("Look for pose\n");
-//		g_UserGenerator.GetPoseDetectionCap().StartPoseDetection("Psi", user);
-//		return;
-//	}
-
+	if (!g_bCalibrated) // check on player0 is enough
+	{
+		printf("Look for pose\n");
+		g_UserGenerator.GetPoseDetectionCap().StartPoseDetection("Psi", user);
+		return;
+	}
 
 	AssignPlayer(user);
  	if (g_nPlayer == 0)
  	{
-		printf("Assigned user\n");
-		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(user, 0);
-		g_UserGenerator.GetSkeletonCap().StartTracking(user);
-		g_nPlayer = user;
+ 		printf("Assigned user\n");
+ 		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(user, 0);
+ 		g_UserGenerator.GetSkeletonCap().StartTracking(user);
+ 		g_nPlayer = user;
  	}
-}
 
-void XN_CALLBACK_TYPE ReturningUser(xn::UserGenerator& generator, XnUserID user, void* pCookie)
-{
-	printf("RETURNING USER?!?!?! Look for pose\n");
-//	focus = user;
-//	printf("Debug: %i\n",user);
-	g_UserGenerator.GetPoseDetectionCap().StartPoseDetection("Psi", user);
-	return;
 }
-
 void FindPlayer()
 {
 	if (g_nPlayer != 0)
 	{
 		return;
 	}
-	XnUserID aUsers[1];
-	XnUInt16 nUsers = 1;
+	XnUserID aUsers[11];
+	XnUInt16 nUsers = 11;
 	g_UserGenerator.GetUsers(aUsers, nUsers);
 
 	for (int i = 0; i < nUsers; ++i)
@@ -242,15 +224,12 @@ void XN_CALLBACK_TYPE LostUser(xn::UserGenerator& generator, XnUserID user, void
 	{
 		LostPlayer();
 	}
-//	g_nPlayer = 0;
 }
-
 void XN_CALLBACK_TYPE PoseDetected(xn::PoseDetectionCapability& pose, const XnChar* strPose, XnUserID user, void* cxt)
 {
 	printf("Found pose \"%s\" for user %d\n", strPose, user);
 	g_UserGenerator.GetSkeletonCap().RequestCalibration(user, TRUE);
 	g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(user);
-	int focus = user;
 }
 
 void XN_CALLBACK_TYPE CalibrationStarted(xn::SkeletonCapability& skeleton, XnUserID user, void* cxt)
@@ -344,9 +323,11 @@ void kinectDisplay (void)
 
 		// Process the data
 		//DRAW
-		g_UserGenerator.GetUserPixels(focus, sceneMD);
+		g_DepthGenerator.GetMetaData(depthMD);
+		g_ImageGenerator.GetMetaData(imageMD);
+		g_UserGenerator.GetUserPixels(1, sceneMD);
 
-		DrawDepthMap(depthMD, sceneMD, focus, imageMD);
+		DrawDepthMap(depthMD, sceneMD, g_nPlayer, imageMD);
 
 		if (g_nPlayer != 0)
 		{
@@ -464,7 +445,6 @@ void XN_CALLBACK_TYPE NoHands(void* UserCxt)
 // Callback for when the focus is in progress
 void XN_CALLBACK_TYPE FocusProgress(const XnChar* strFocus, const XnPoint3D& ptPosition, XnFloat fProgress, void* UserCxt)
 {
-//	g_UserGenerator.
 	printf("Focus progress: %s @(%f,%f,%f): %f\n", strFocus, ptPosition.X, ptPosition.Y, ptPosition.Z, fProgress);
 }
 
@@ -472,13 +452,12 @@ void XN_CALLBACK_TYPE Swipe_SwipeUp(XnFloat fVelocity, XnFloat fAngle, void* cxt
 {
 	if(!coverflowMode && !annotateMode){
 		printf("SWIPED Up! Vel: %f\n", fVelocity);
-		//if(fVelocity > 0.37f){
+		if(fVelocity > 0.37f){
 			pHistory.clear();
 			pIndex.clear();
-			cIndex.clear();
 			pointIndex = -1;
 			printf("SIZE AFTER CLEAR: %d, Index: %d\n",pHistory.size(), pIndex.size());
-		//}
+		}
 	}
 }
 
@@ -505,11 +484,6 @@ void XN_CALLBACK_TYPE Swipe_SwipeDown(XnFloat fVelocity, XnFloat fAngle, void* c
 	if(!coverflowMode && !annotateMode){
 		printf("SWIPED Down!\n");
 	}
-}
-
-void XN_CALLBACK_TYPE wave(void* pUserCxt)
-{
-	printf("Wave!!\n");
 }
 
 void XN_CALLBACK_TYPE CircleCB(XnFloat fTimes, XnBool bConfident, const XnVCircle* pCircle, void* pUserCxt)
@@ -539,13 +513,16 @@ void XN_CALLBACK_TYPE CircleCB(XnFloat fTimes, XnBool bConfident, const XnVCircl
 		quickSlide = std::max(quickSlide, -1*current_slide_index);
 		quickSlide = std::min(quickSlide, numSlides - current_slide_index);
 
+<<<<<<< HEAD
 //	sprintf(strLabel, "%d", quickSlide);//fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
-//	status_circle = true;
+	status_circle = true;
 //	glRasterPos2i(20, 20);
 //	glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
+=======
 //			sprintf(strLabel, "%d", quickSlide);//fmod((double)fTimes, 1.0) * 2 * XnVMathCommon::PI);
 //			glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
 	}
+>>>>>>> df225b089357ccdb4c80f592be4b37b6c091eee5
 }
 
 void XN_CALLBACK_TYPE NoCircleCB(XnFloat fLastValue, XnVCircleDetector::XnVNoCircleReason reason, void * pUserCxt)
@@ -575,28 +552,25 @@ void XN_CALLBACK_TYPE Circle_PrimaryDestroy(XnUInt32 nID, void * pUserCxt)
 void XN_CALLBACK_TYPE onPush(XnFloat fVelocity, XnFloat fAngle, void* UserCxt)
 {
 	printf("\nAngle: %f\n",fAngle);
-	printf("Velocity: %f\n" , fVelocity);
 //	printf("PUSH\n");
-	if(splitMode)	splitMode = false;
-//	if (coverflowMode && fVelocity > 0.35f){
+	if (coverflowMode && fVelocity > 0.5f){
 		coverflowMode = false;
-
+		printf("Velocity: %f\n" , fVelocity);
 		circleDetector->Reset();
-//	}
-//	else if(!coverflowMode && fVelocity > 0.5f){
-//		pushDetector->SetStableDuration(2000);
-//		annotateMode = true;
-//	}
-//	pushDetector->SetStableDuration(360);
+	} else if(!coverflowMode && fVelocity > 0.5f){
+		pushDetector->SetStableDuration(2000);
+		annotateMode = true;
+	}
+	pushDetector->SetStableDuration(360);
 }
 
 void XN_CALLBACK_TYPE onStable(XnFloat fVelocity, void* UserCxt)
 {
-//	printf("STABLE??? pointIndex: %d\n", pointIndex);
-//	if(annotateMode){
-//		annotateMode = false;
-//		pIndex.push_back(pointIndex);
-//	}
+	printf("STABLE??? pointIndex: %d\n", pointIndex);
+	if(annotateMode){
+		annotateMode = false;
+		pIndex.push_back(pointIndex);
+	}
 }
 
 extern unsigned char* pDepthTexBuf;
@@ -629,16 +603,6 @@ int start(){
 	rc = g_Context.FindExistingNode(XN_NODE_TYPE_GESTURE, g_GestureGenerator);
 	CHECK_RC(rc, "Find gesture generator");
 
-//	XnBool isSupported = g_DepthGenerator.IsCapabilitySupported("AlternativeViewPoint");
-//	if(TRUE == isSupported)
-//	{
-//		XnStatus res = g_DepthGenerator.GetAlternativeViewPointCap().SetViewPoint(g_ImageGenerator);
-//		if(XN_STATUS_OK != res)
-//		{
-//			printf("Getting and setting AlternativeViewPoint failed: %s\n", xnGetStatusString(res));
-//		}
-//	}
-
 	XnCallbackHandle hGestureIntermediateStageCompleted, hGestureProgress, hGestureReadyForNextIntermediateStage;
 	g_GestureGenerator.RegisterToGestureIntermediateStageCompleted(GestureIntermediateStageCompletedHandler, NULL, hGestureIntermediateStageCompleted);
 	g_GestureGenerator.RegisterToGestureReadyForNextIntermediateStage(GestureReadyForNextIntermediateStageHandler, NULL, hGestureReadyForNextIntermediateStage);
@@ -669,10 +633,6 @@ int start(){
 	swipeDetector->RegisterSwipeRight(NULL, &Swipe_SwipeRight);
 	broadcaster->AddListener(swipeDetector);
 
-	waveDetector = new XnVWaveDetector();
-	waveDetector->RegisterWave(NULL, &wave);
-	broadcaster->AddListener(waveDetector);
-
 	g_pDrawer = new XnVPointDrawer(20, g_DepthGenerator);
 	broadcaster->AddListener(g_pDrawer);
 	g_pSessionManager->AddListener(broadcaster);
@@ -696,9 +656,6 @@ int start(){
 
 	XnCallbackHandle hUserCBs, hCalibrationStartCB, hCalibrationCompleteCB, hPoseCBs;
 	g_UserGenerator.RegisterUserCallbacks(NewUser, LostUser, NULL, hUserCBs);
-	g_UserGenerator.RegisterToUserExit(LostUser,NULL,hUserCBs);
-	g_UserGenerator.RegisterToUserReEnter(ReturningUser,NULL,hUserCBs);
-
 	rc = g_UserGenerator.GetSkeletonCap().RegisterToCalibrationStart(CalibrationStarted, NULL, hCalibrationStartCB);
 	CHECK_RC(rc, "Register to calibration start");
 	rc = g_UserGenerator.GetSkeletonCap().RegisterToCalibrationComplete(CalibrationCompleted, NULL, hCalibrationCompleteCB);
@@ -710,31 +667,8 @@ int start(){
 
 }
 
-void reset( void ){
-//	g_UserGenerator.GetSkeletonCap().Reset(0);
-//	g_UserGenerator.GetSkeletonCap().Reset(1);
-//	g_UserGenerator.GetSkeletonCap().ClearCalibrationData(0);
-//	g_UserGenerator.GetSkeletonCap().ClearCalibrationData(1);
-//	g_UserGenerator.GetSkeletonCap().StopTracking(0);
-//	g_UserGenerator.GetSkeletonCap().StopTracking(1);
-//	g_UserGenerator.StopGenerating();
-//	g_UserGenerator.StartGenerating();
-//	for(int o = 0; o < 8; o++){
-//		g_nPlayer = 0;
-//		LostUser(g_UserGenerator, 0, NULL);
-//		g_UserGenerator.GetSkeletonCap().ClearCalibrationData(o);
-//		g_UserGenerator.GetSkeletonCap().StopTracking(o);
-//	}
-//
-//	g_UserGenerator.StopGenerating();
-////	g_UserGenerator.GetContext(g_Context);
-//	g_UserGenerator.
-//	g_UserGenerator.SetGeneralProperty()
-	g_nPlayer = 0;
-}
-
 void motorAngle(int angle){
-//	printf("%i\n",angle);
+	printf("%i\n",angle);
 	xnUSBInit();
 	xnUSBOpenDevice(VID_MICROSOFT, PID_NUI_MOTOR, NULL, NULL, &dev);
 	uint8_t empty[0x1];

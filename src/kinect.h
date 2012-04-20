@@ -48,6 +48,7 @@ void DrawProjectivePoints(XnPoint3D& ptIn, int width, double r, double g, double
 void kinectDisplay (void);
 
 void glutIdle (void);
+void reset(void);
 
 void glutKeyboard (unsigned char key, int x, int y);
 void glInit (int * pargc, char ** argv);

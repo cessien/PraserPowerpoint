@@ -10,6 +10,7 @@
 #include <GL/glut.h>
 #include <vector>
 
+extern int focus;
 extern xn::UserGenerator g_UserGenerator;
 extern xn::DepthGenerator g_DepthGenerator;
 extern int LEFT, RIGHT, TOP, BOTTOM;
@@ -17,7 +18,9 @@ extern float CENTER;
 extern bool calibrationMode;
 extern bool annotateMode;
 extern std::vector<int> pIndex;
+extern std::vector<int> cIndex;
 extern int pointIndex;
+extern int curr_color;
 
 extern float centerScreen[2];
 extern unsigned int depthVal;
@@ -149,7 +152,7 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, Xn
 			g_pDepthHist[nIndex] = (unsigned int)(256 * (1.0f - (g_pDepthHist[nIndex] / nNumberOfPoints)));
 		}
 	}
-
+//	printf("Debug: %i\n",focus);
 	pDepth = (short unsigned int*)dmd.Data();
 	///{
 		// Prepare the texture map
@@ -168,7 +171,7 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd, Xn
 					//printf("Depth: %i \n",nValue);
 				label = *pLabels;
 //				XnUInt32 nColorID = label % nColors;
-				if (label != 1)
+				if (label != focus)
 				{
 					if(calibrationMode){
 						pDestImage[0] = pixel->nRed;
@@ -341,11 +344,12 @@ void XnVPointDrawer::OnPointUpdate(const XnVHandPointContext* cxt)
 	pos[0] = ptProjective.X;
 	pos[1] = ptProjective.Y;
 	pos[2] = ptProjective.Z;
-	printf("DEBUG: depthVal:%d pos[2]:%f\n",depthVal, pos[2]);
-	if (depthVal - pos[2] < 350){
+//	printf("DEBUG: depthVal:%d pos[2]:%f\n",depthVal, pos[2]);
+	if (depthVal - pos[2] < 450){
 		annotateMode = true;
 	} else{
 		pIndex.push_back(pointIndex);
+		cIndex.push_back(curr_color);
 		annotateMode = false;
 	}
 //	printf("JHS: %f\n",ptProjective.Z);
